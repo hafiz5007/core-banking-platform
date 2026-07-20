@@ -1,0 +1,214 @@
+# Local development stack for the Sprint 0 walking skeleton.
+# Brings up PostgreSQL and the account-service.
+#   docker compose up --build
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: banking
+      POSTGRES_USER: banking
+      POSTGRES_PASSWORD: banking
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U banking -d banking"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  account-service:
+    build:
+      context: .
+      dockerfile: account-service/Dockerfile
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/banking
+      DB_USER: banking
+      DB_PASSWORD: banking
+      SERVER_PORT: 8081
+      LEDGER_BASE_URL: http://ledger-service:8083
+      LEDGER_PROVISIONING: http
+    ports:
+      - "8081:8081"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ledger-service:
+        condition: service_started
+
+  customer-service:
+    build:
+      context: .
+      dockerfile: customer-service/Dockerfile
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/banking
+      DB_USER: banking
+      DB_PASSWORD: banking
+      SERVER_PORT: 8082
+    ports:
+      - "8082:8082"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  ledger-service:
+    build:
+      context: .
+      dockerfile: ledger-service/Dockerfile
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/banking
+      DB_USER: banking
+      DB_PASSWORD: banking
+      SERVER_PORT: 8083
+    ports:
+      - "8083:8083"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  payment-service:
+    build:
+      context: .
+      dockerfile: payment-service/Dockerfile
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/banking
+      DB_USER: banking
+      DB_PASSWORD: banking
+      SERVER_PORT: 8084
+      LEDGER_BASE_URL: http://ledger-service:8083
+      SCREENING_ADAPTER: risk-service
+      RISK_BASE_URL: http://risk-aml-service:8088
+    ports:
+      - "8084:8084"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ledger-service:
+        condition: service_started
+      risk-aml-service:
+        condition: service_started
+
+  interest-fee-service:
+    build:
+      context: .
+      dockerfile: interest-fee-service/Dockerfile
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/banking
+      DB_USER: banking
+      DB_PASSWORD: banking
+      SERVER_PORT: 8085
+      LEDGER_BASE_URL: http://ledger-service:8083
+    ports:
+      - "8085:8085"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ledger-service:
+        condition: service_started
+
+  card-service:
+    build:
+      context: .
+      dockerfile: card-service/Dockerfile
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/banking
+      DB_USER: banking
+      DB_PASSWORD: banking
+      SERVER_PORT: 8086
+      LEDGER_BASE_URL: http://ledger-service:8083
+    ports:
+      - "8086:8086"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ledger-service:
+        condition: service_started
+
+  notification-service:
+    build:
+      context: .
+      dockerfile: notification-service/Dockerfile
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/banking
+      DB_USER: banking
+      DB_PASSWORD: banking
+      SERVER_PORT: 8087
+    ports:
+      - "8087:8087"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  risk-aml-service:
+    build:
+      context: .
+      dockerfile: risk-aml-service/Dockerfile
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/banking
+      DB_USER: banking
+      DB_PASSWORD: banking
+      SERVER_PORT: 8088
+    ports:
+      - "8088:8088"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  admin-service:
+    build:
+      context: .
+      dockerfile: admin-service/Dockerfile
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/banking
+      DB_USER: banking
+      DB_PASSWORD: banking
+      SERVER_PORT: 8089
+    ports:
+      - "8089:8089"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  reporting-service:
+    build:
+      context: .
+      dockerfile: reporting-service/Dockerfile
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/banking
+      DB_USER: banking
+      DB_PASSWORD: banking
+      SERVER_PORT: 8090
+    ports:
+      - "8090:8090"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: api-gateway/Dockerfile
+    environment:
+      SERVER_PORT: 8080
+      ACCOUNT_URI: http://account-service:8081
+      CUSTOMER_URI: http://customer-service:8082
+      LEDGER_URI: http://ledger-service:8083
+      PAYMENT_URI: http://payment-service:8084
+      INTEREST_URI: http://interest-fee-service:8085
+      CARD_URI: http://card-service:8086
+      NOTIFICATION_URI: http://notification-service:8087
+      RISK_URI: http://risk-aml-service:8088
+      ADMIN_URI: http://admin-service:8089
+      REPORTING_URI: http://reporting-service:8090
+    ports:
+      - "8080:8080"
+    depends_on:
+      - account-service
+      - customer-service
+      - ledger-service
+      - payment-service
+
+volumes:
+  pgdata:

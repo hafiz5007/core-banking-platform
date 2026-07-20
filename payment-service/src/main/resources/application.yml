@@ -1,0 +1,67 @@
+spring:
+  application:
+    name: payment-service
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/banking}
+    username: ${DB_USER:banking}
+    password: ${DB_PASSWORD:banking}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        default_schema: payment
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    schemas: payment
+    default-schema: payment
+    create-schemas: true
+
+server:
+  port: ${SERVER_PORT:8084}
+
+ledger:
+  base-url: ${LEDGER_BASE_URL:http://localhost:8083}
+
+# Screening: "stub" (default, in-process) or "risk-service" (calls risk-aml-service).
+screening:
+  adapter: ${SCREENING_ADAPTER:stub}
+
+risk:
+  base-url: ${RISK_BASE_URL:http://localhost:8088}
+
+clearing:
+  settlement-account: ${CLEARING_SETTLEMENT_ACCOUNT:SETTLEMENT}
+
+crossborder:
+  nostro-account: ${CROSSBORDER_NOSTRO_ACCOUNT:NOSTRO}
+
+outbox:
+  relay:
+    delay-ms: 5000
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: when_authorized
+  tracing:
+    sampling:
+      probability: 1.0
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+
+logging:
+  pattern:
+    level: "%5p [${spring.application.name},correlationId=%X{correlationId:-n/a}]"

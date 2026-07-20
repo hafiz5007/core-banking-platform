@@ -1,0 +1,73 @@
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      mvc:
+        routes:
+          - id: account-service
+            uri: ${ACCOUNT_URI:http://localhost:8081}
+            predicates:
+              - Path=/api/v1/accounts/**,/api/v1/products/**
+          - id: customer-service
+            uri: ${CUSTOMER_URI:http://localhost:8082}
+            predicates:
+              - Path=/api/v1/customers/**,/api/v1/open-banking/**
+          - id: ledger-service
+            uri: ${LEDGER_URI:http://localhost:8083}
+            predicates:
+              - Path=/api/v1/ledger/**
+          - id: payment-service
+            uri: ${PAYMENT_URI:http://localhost:8084}
+            predicates:
+              - Path=/api/v1/payments/**,/api/v1/standing-orders/**,/api/v1/direct-debits/**,/api/v1/aliases/**,/api/v1/billers/**
+          - id: interest-fee-service
+            uri: ${INTEREST_URI:http://localhost:8085}
+            predicates:
+              - Path=/api/v1/interest/**
+          - id: card-service
+            uri: ${CARD_URI:http://localhost:8086}
+            predicates:
+              - Path=/api/v1/cards/**
+          - id: notification-service
+            uri: ${NOTIFICATION_URI:http://localhost:8087}
+            predicates:
+              - Path=/api/v1/notifications/**
+          - id: risk-aml-service
+            uri: ${RISK_URI:http://localhost:8088}
+            predicates:
+              - Path=/api/v1/risk/**
+          - id: admin-service
+            uri: ${ADMIN_URI:http://localhost:8089}
+            predicates:
+              - Path=/api/v1/admin/**
+          - id: reporting-service
+            uri: ${REPORTING_URI:http://localhost:8090}
+            predicates:
+              - Path=/api/v1/reports/**
+
+server:
+  port: ${SERVER_PORT:8080}
+
+gateway:
+  security:
+    enabled: ${GATEWAY_SECURITY_ENABLED:false}
+  rate-limit:
+    per-minute: ${GATEWAY_RATE_LIMIT:120}
+
+# Configure when gateway.security.enabled=true (point at the bank's identity provider):
+# spring.security.oauth2.resourceserver.jwt.issuer-uri: https://idp.example.com/realms/bank
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,gateway
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+logging:
+  pattern:
+    level: "%5p [${spring.application.name}]"
