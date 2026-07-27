@@ -44,7 +44,8 @@ class ChannelPaymentIT extends AbstractIntegrationTest {
 
     @Test
     void billPaymentResolvesBillerAndPays() {
-        String code = "UTIL-" + UUID.randomUUID();
+        // biller_code is VARCHAR(40); a full UUID would push the code to 41 characters.
+        String code = "UTIL-" + UUID.randomUUID().toString().substring(0, 8);
         rest.postForEntity("/api/v1/billers",
                 new RegisterBillerRequest(code, "City Power", "9000"), Object.class);
 
