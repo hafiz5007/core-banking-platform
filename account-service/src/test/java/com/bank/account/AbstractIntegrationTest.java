@@ -5,21 +5,23 @@ import org.springframework.boot.testcontainers.service.connection.ServiceConnect
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 /**
  * Base class spinning up a real PostgreSQL via Testcontainers so integration tests exercise the
  * full stack (Flyway migration, JPA, SQL) rather than an in-memory substitute.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@Testcontainers
 public abstract class AbstractIntegrationTest {
-
-    @Container
     @ServiceConnection
     static final PostgreSQLContainer<?> POSTGRES =
             new PostgreSQLContainer<>("postgres:16-alpine");
+
+    static {
+        // Started once per JVM and deliberately never stopped: Spring caches the application
+        // context across test classes, so a container tied to one class's lifecycle gets torn
+        // down while a later class still points its DataSource at it. Ryuk reaps it at exit.
+        POSTGRES.start();
+    }
 
     @DynamicPropertySource
     static void disableTracingExport(DynamicPropertyRegistry registry) {

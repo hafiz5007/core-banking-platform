@@ -7,7 +7,7 @@ CREATE TABLE payment (
     debtor_account    VARCHAR(40)  NOT NULL,
     creditor_account  VARCHAR(40)  NOT NULL,
     amount            NUMERIC(19, 4) NOT NULL,
-    currency_code     CHAR(3)      NOT NULL,
+    currency_code     VARCHAR(3)      NOT NULL,
     narrative         VARCHAR(280) NOT NULL,
     status            VARCHAR(20)  NOT NULL,
     ledger_entry_id   UUID,

@@ -38,9 +38,19 @@
         <maven.compiler.release>21</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <springdoc.version>2.7.0</springdoc.version>
-        <testcontainers.version>1.20.4</testcontainers.version>
+        <!-- 1.21+ bundles a docker-java that negotiates a Docker Engine 29 compatible API version;
+             1.20.x fails client-side with HTTP 400 against modern Docker Desktop. -->
+        <testcontainers.version>1.21.3</testcontainers.version>
         <spring-cloud.version>2024.0.0</spring-cloud.version>
         <spotless.version>2.43.0</spotless.version>
+        <!--
+          Docker Engine API version Testcontainers negotiates (docker-java reads the `api.version`
+          system property; there is no env-var equivalent). Docker Engine 29 dropped support for
+          API < 1.40, and the docker-java default is older, so the handshake fails with an
+          unhelpful HTTP 400. Pinning 1.41 (Docker 20.10+) works across every supported engine.
+          Override with -Ddocker.api.version=... if your daemon needs something else.
+        -->
+        <docker.api.version>1.41</docker.api.version>
     </properties>
 
     <dependencyManagement>
@@ -78,10 +88,20 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-surefire-plugin</artifactId>
+                    <configuration>
+                        <systemPropertyVariables>
+                            <api.version>${docker.api.version}</api.version>
+                        </systemPropertyVariables>
+                    </configuration>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-failsafe-plugin</artifactId>
+                    <configuration>
+                        <systemPropertyVariables>
+                            <api.version>${docker.api.version}</api.version>
+                        </systemPropertyVariables>
+                    </configuration>
                     <executions>
                         <execution>
                             <goals>
@@ -93,6 +113,18 @@
                 </plugin>
             </plugins>
         </pluginManagement>
+
+        <plugins>
+            <!--
+              Bind failsafe in every module. The pluginManagement entry above only configures the
+              plugin; without this declaration nothing runs the integration-test/verify goals and
+              the *IT tests are compiled but silently skipped.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
+            </plugin>
+        </plugins>
     </build>
 
     <profiles>

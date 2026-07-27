@@ -3,7 +3,7 @@
 CREATE TABLE interest_position (
     id                  UUID         NOT NULL,
     account_code        VARCHAR(40)  NOT NULL,
-    currency_code       CHAR(3)      NOT NULL,
+    currency_code       VARCHAR(3)      NOT NULL,
     annual_rate_percent NUMERIC(9, 4)  NOT NULL,
     principal           NUMERIC(19, 4) NOT NULL,
     accrued_interest    NUMERIC(23, 8) NOT NULL DEFAULT 0,
@@ -22,7 +22,7 @@ CREATE TABLE fee_charge (
     account_code    VARCHAR(40)  NOT NULL,
     fee_type        VARCHAR(20)  NOT NULL,
     amount          NUMERIC(19, 4) NOT NULL,
-    currency_code   CHAR(3)      NOT NULL,
+    currency_code   VARCHAR(3)      NOT NULL,
     ledger_entry_id UUID,
     applied_at      TIMESTAMPTZ  NOT NULL,
     CONSTRAINT pk_fee_charge PRIMARY KEY (id),

@@ -22,6 +22,12 @@
             <scope>provided</scope>
         </dependency>
 
+        <!-- MDC for correlation-id / tenant propagation; the binding comes from the consuming service. -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+        </dependency>
+
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>

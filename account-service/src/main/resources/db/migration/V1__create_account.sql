@@ -8,7 +8,7 @@ CREATE TABLE account (
     account_type   VARCHAR(20)  NOT NULL,
     status         VARCHAR(20)  NOT NULL,
     balance_amount NUMERIC(19, 4) NOT NULL DEFAULT 0,
-    currency_code  CHAR(3)      NOT NULL,
+    currency_code  VARCHAR(3)      NOT NULL,
     version        BIGINT       NOT NULL DEFAULT 0,
     created_at     TIMESTAMPTZ  NOT NULL,
     updated_at     TIMESTAMPTZ  NOT NULL,

@@ -10,18 +10,20 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 /** Base class with a real PostgreSQL and an in-memory ledger so accrual/fee flows run end-to-end. */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@Testcontainers
 public abstract class AbstractIntegrationTest {
-
-    @Container
     @ServiceConnection
     static final PostgreSQLContainer<?> POSTGRES =
             new PostgreSQLContainer<>("postgres:16-alpine");
+
+    static {
+        // Started once per JVM and deliberately never stopped: Spring caches the application
+        // context across test classes, so a container tied to one class's lifecycle gets torn
+        // down while a later class still points its DataSource at it. Ryuk reaps it at exit.
+        POSTGRES.start();
+    }
 
     @DynamicPropertySource
     static void properties(DynamicPropertyRegistry registry) {
@@ -29,10 +31,10 @@ public abstract class AbstractIntegrationTest {
     }
 
     @TestConfiguration
-    static class FakeLedgerConfig {
+    public static class FakeLedgerConfig {
         @Bean
         @Primary
-        LedgerPort fakeLedgerPort() {
+        public LedgerPort fakeLedgerPort() {
             return command -> UUID.randomUUID();
         }
     }

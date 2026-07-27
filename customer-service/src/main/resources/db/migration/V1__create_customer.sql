@@ -6,7 +6,7 @@ CREATE TABLE customer (
     first_name          VARCHAR(100) NOT NULL,
     last_name           VARCHAR(100) NOT NULL,
     date_of_birth       DATE         NOT NULL,
-    nationality         CHAR(2)      NOT NULL,
+    nationality         VARCHAR(2)      NOT NULL,
     email               VARCHAR(320) NOT NULL,
     phone               VARCHAR(30),
     tax_id              VARCHAR(50),

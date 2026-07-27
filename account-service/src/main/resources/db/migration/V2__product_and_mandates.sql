@@ -5,7 +5,7 @@ CREATE TABLE product (
     code                  VARCHAR(40)  NOT NULL,
     name                  VARCHAR(120) NOT NULL,
     account_type          VARCHAR(20)  NOT NULL,
-    currency_code         CHAR(3)      NOT NULL,
+    currency_code         VARCHAR(3)      NOT NULL,
     interest_rate_percent NUMERIC(9, 4)  NOT NULL,
     monthly_fee           NUMERIC(19, 4) NOT NULL,
     min_balance           NUMERIC(19, 4) NOT NULL,

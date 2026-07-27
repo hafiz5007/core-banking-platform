@@ -19,7 +19,7 @@ CREATE TABLE aml_alert (
     transaction_ref VARCHAR(80)  NOT NULL,
     account_ref     VARCHAR(40)  NOT NULL,
     amount          NUMERIC(19, 4) NOT NULL,
-    currency_code   CHAR(3)      NOT NULL,
+    currency_code   VARCHAR(3)      NOT NULL,
     rule_code       VARCHAR(40)  NOT NULL,
     case_id         UUID         NOT NULL,
     created_at      TIMESTAMPTZ  NOT NULL,
