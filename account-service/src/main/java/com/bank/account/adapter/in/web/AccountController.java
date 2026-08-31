@@ -3,11 +3,13 @@ package com.bank.account.adapter.in.web;
 import com.bank.account.adapter.in.web.dto.AccountHolderResponse;
 import com.bank.account.adapter.in.web.dto.AccountResponse;
 import com.bank.account.adapter.in.web.dto.ChangeLogResponse;
+import com.bank.account.adapter.in.web.dto.DebitAccountRequest;
 import com.bank.account.adapter.in.web.dto.OpenAccountRequest;
 import com.bank.account.adapter.in.web.dto.OpenFromProductRequest;
 import com.bank.account.application.AccountService;
 import com.bank.account.application.ChangeLogRecorder;
 import com.bank.account.domain.Account;
+import com.bank.common.money.Money;
 import jakarta.validation.Valid;
 import java.net.URI;
 import java.util.Currency;
@@ -52,6 +54,17 @@ public class AccountController {
         return ResponseEntity
                 .created(URI.create("/api/v1/accounts/" + account.getId()))
                 .body(AccountResponse.from(account));
+    }
+
+    /** Debit an account; the matching double-entry is posted to ledger-service over gRPC (ADR-007). */
+    @PostMapping("/{id}/debit")
+    public AccountResponse debit(@PathVariable UUID id, @Valid @RequestBody DebitAccountRequest request) {
+        Account account = accountService.debitAccount(
+                id,
+                Money.of(request.amount(), Currency.getInstance(request.currencyCode())),
+                request.narrative(),
+                request.idempotencyKey());
+        return AccountResponse.from(account);
     }
 
     @GetMapping("/{id}")

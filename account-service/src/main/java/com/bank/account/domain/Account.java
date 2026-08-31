@@ -1,5 +1,8 @@
 package com.bank.account.domain;
 
+import com.bank.common.error.BusinessException;
+import com.bank.common.error.ErrorCode;
+import com.bank.common.money.CurrencyMismatchException;
 import com.bank.common.money.Money;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -132,6 +135,34 @@ public class Account {
     /** Whether a withdrawal is permitted: it must not exceed the available (incl. overdraft) funds. */
     public boolean canWithdraw(Money amount) {
         return amount.amount().compareTo(availableToSpend().amount()) <= 0;
+    }
+
+    /**
+     * Debit the account, reducing its balance. Only an {@code ACTIVE} account may be debited, the
+     * amount must be a positive amount in the account's own currency, and it must fit within the
+     * available funds (balance plus any agreed overdraft).
+     *
+     * <p>This mutates the balance only. Posting the corresponding double-entry to the general ledger
+     * is the caller's responsibility — the domain has no knowledge of the ledger.
+     */
+    public void debit(Money amount) {
+        if (amount == null || amount.isZero() || amount.isNegative()) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "Debit amount must be positive");
+        }
+        if (!amount.currency().getCurrencyCode().equals(currencyCode)) {
+            throw new CurrencyMismatchException(Currency.getInstance(currencyCode), amount.currency());
+        }
+        if (status != AccountStatus.ACTIVE) {
+            throw new BusinessException(ErrorCode.BUSINESS_RULE_VIOLATION,
+                    "Account " + accountNumber + " is " + status + " and cannot be debited");
+        }
+        if (!canWithdraw(amount)) {
+            throw new BusinessException(ErrorCode.BUSINESS_RULE_VIOLATION,
+                    "Insufficient funds on " + accountNumber + ": available " + availableToSpend()
+                            + ", requested " + amount);
+        }
+        this.balanceAmount = balance().subtract(amount).amount();
+        this.updatedAt = Instant.now();
     }
 
     public UUID getId() {

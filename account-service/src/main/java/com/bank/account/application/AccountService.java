@@ -2,6 +2,7 @@ package com.bank.account.application;
 
 import com.bank.account.adapter.out.persistence.AccountHolderRepository;
 import com.bank.account.adapter.out.persistence.AccountRepository;
+import com.bank.account.application.port.LedgerPostingPort;
 import com.bank.account.application.port.LedgerProvisioningPort;
 import com.bank.account.domain.Account;
 import com.bank.account.domain.AccountHolder;
@@ -11,6 +12,7 @@ import com.bank.account.domain.ChangeType;
 import com.bank.account.domain.MandateType;
 import com.bank.account.domain.Product;
 import com.bank.common.error.ResourceNotFoundException;
+import com.bank.common.money.Money;
 import com.bank.common.tenant.TenantContext;
 import java.security.SecureRandom;
 import java.util.Currency;
@@ -32,17 +34,20 @@ public class AccountService {
     private final AccountHolderRepository holderRepository;
     private final ProductService productService;
     private final LedgerProvisioningPort ledgerProvisioning;
+    private final LedgerPostingPort ledgerPosting;
     private final ChangeLogRecorder changeLog;
 
     public AccountService(AccountRepository repository,
                           AccountHolderRepository holderRepository,
                           ProductService productService,
                           LedgerProvisioningPort ledgerProvisioning,
+                          LedgerPostingPort ledgerPosting,
                           ChangeLogRecorder changeLog) {
         this.repository = repository;
         this.holderRepository = holderRepository;
         this.productService = productService;
         this.ledgerProvisioning = ledgerProvisioning;
+        this.ledgerPosting = ledgerPosting;
         this.changeLog = changeLog;
     }
 
@@ -83,6 +88,34 @@ public class AccountService {
                 "Opened account " + account.getAccountNumber() + " from product " + productCode);
         log.info("Opened account {} from product {} (mandate {}) for customer {}",
                 account.getAccountNumber(), productCode, mandate, primaryCustomerId);
+        return account;
+    }
+
+    /**
+     * Debit an account and post the matching double-entry to the general ledger (ADR-007).
+     *
+     * <p>The domain applies the debit rules and the balance change; the ledger posting goes out
+     * through {@link LedgerPostingPort} (gRPC in a wired deployment). The posting happens inside the
+     * transaction on purpose: if the ledger rejects the entry the balance change is rolled back, so
+     * the account and the ledger cannot disagree. The cost is that a ledger outage fails the debit —
+     * the correct trade-off here, since a debit that never reaches the ledger is worse than one that
+     * is refused. The ledger is idempotent on {@code idempotencyKey}, so a retry is safe.
+     */
+    @Transactional
+    public Account debitAccount(UUID accountId, Money amount, String narrative, String idempotencyKey) {
+        Account account = getAccount(accountId);
+        account.debit(amount);
+        repository.save(account);
+
+        String entryId = ledgerPosting.postDebit(
+                account.getAccountNumber(), amount,
+                narrative == null || narrative.isBlank() ? "Account debit" : narrative,
+                idempotencyKey);
+
+        changeLog.record("Account", account.getId().toString(), ChangeType.UPDATE, null,
+                "Debited " + amount + (entryId == null ? "" : " (ledger entry " + entryId + ")"));
+        log.info("Debited {} from account {} -> balance {} ledgerEntry={}",
+                amount, account.getAccountNumber(), account.balance(), entryId);
         return account;
     }
 

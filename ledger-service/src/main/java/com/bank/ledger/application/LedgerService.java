@@ -63,7 +63,7 @@ public class LedgerService {
 
     @Transactional(readOnly = true)
     public JournalEntry getEntry(UUID id) {
-        return entryRepository.findById(id)
+        return entryRepository.findByIdWithLines(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Journal entry not found: " + id));
     }
 

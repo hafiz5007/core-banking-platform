@@ -30,6 +30,10 @@ services:
       SERVER_PORT: 8081
       LEDGER_BASE_URL: http://ledger-service:8083
       LEDGER_PROVISIONING: http
+      # Post account debits to ledger-service over gRPC (ADR-007).
+      LEDGER_POSTING: grpc
+      LEDGER_GRPC_TARGET: ledger-service:9090
+      LEDGER_SETTLEMENT_ACCOUNT: SETTLEMENT
     ports:
       - "8081:8081"
     depends_on:
@@ -62,8 +66,12 @@ services:
       DB_USER: banking
       DB_PASSWORD: banking
       SERVER_PORT: 8083
+      # gRPC posting endpoint consumed by account-service (ADR-007).
+      GRPC_SERVER_ENABLED: "true"
+      GRPC_PORT: 9090
     ports:
       - "8083:8083"
+      - "9090:9090"
     depends_on:
       postgres:
         condition: service_healthy

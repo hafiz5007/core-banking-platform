@@ -28,6 +28,11 @@ ledger:
   base-url: ${LEDGER_BASE_URL:http://localhost:8083}
   # Ledger provisioning on account open: "off" (default) or "http" (creates a GL account).
   provisioning: ${LEDGER_PROVISIONING:off}
+  # Debit posting to ledger-service: "off" (default) or "grpc" (ADR-007).
+  posting: ${LEDGER_POSTING:off}
+  settlement-account: ${LEDGER_SETTLEMENT_ACCOUNT:SETTLEMENT}
+  grpc:
+    target: ${LEDGER_GRPC_TARGET:localhost:9090}
 
 management:
   endpoints:

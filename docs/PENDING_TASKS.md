@@ -9,8 +9,9 @@ hardening / completeness · **P2** = enhancement.
 ## 0. Build & verification (do this first)
 
 - [x] **P0 — Real build done and green.** The platform now compiles and passes its full test suite
-  on a real toolchain (**JDK 21.0.11 / Maven 3.9.9 / Docker 29.5.3**): `mvn verify` → **BUILD
-  SUCCESS**, 13 modules, **151 tests, 0 failures**, including **17 integration-test classes**
+    | 9 | `GET /api/v1/ledger/entries/{id}` returned **500 for every entry**: `open-in-view` is off (correct) but the controller mapped the lazy `lines` collection after the transaction closed. No test covered the endpoint. Found while building the gRPC bridge. | added a fetch-join finder (`findByIdWithLines`) and used it in `LedgerService.getEntry` — also removes an N+1 |
+on a real toolchain (**JDK 21.0.11 / Maven 3.9.9 / Docker 29.5.3**): `mvn verify` → **BUILD
+  SUCCESS**, 14 modules, **170 tests, 0 failures**, including **19 integration-test classes**
   running against real PostgreSQL 16 containers via Testcontainers.
   - `api-gateway`, previously flagged as the highest-risk module, builds and its context test
     passes; `spring-cloud-starter-gateway-mvc` and the route config are correct for Spring Cloud
@@ -82,6 +83,20 @@ Each is already a port with a working stub; swap in the real client and add cont
   account — wire it to `account-service`/`ledger-service`.
 - [ ] **P1 — Notification gateways** (`notification-service` `NotificationSenderPort` →
   `LoggingSenderAdapter`): real SMS/email/push providers with delivery callbacks + retry.
+- [x] **P1 — gRPC bridge account-service → ledger-service (ADR-007) — done.** `POST
+  /api/v1/accounts/{id}/debit` applies the debit in the domain and posts the balanced entry to
+  ledger-service over gRPC. New `ledger-grpc-api` module holds the contract; server in
+  `ledger-service` (`LedgerPostingGrpcService` + `GrpcServerConfig`), client in `account-service`
+  (`LedgerPostingPort` → `GrpcLedgerPostingAdapter`). Off by default (`ledger.posting=off`); wired
+  in docker-compose. Covered by 13 tests over a real Netty transport on both sides. See ADR-007 for
+  the decisions taken while building it.
+  - Follow-on: the **balance-query RPC** in ADR-007 is still not implemented — reads go over REST.
+  - Follow-on: transport is **plaintext**, assuming mesh mTLS (see the service-to-service item in
+    section 3).
+  - Note `Account` still has **no lifecycle transitions** (no close/freeze/block); `AccountStatus`
+    has five values but nothing moves between them, so the "only ACTIVE may be debited" guard is
+    provable only by setting the field reflectively in a test.
+
 - [ ] **P1 — Outbox relay → Kafka** (`payment-service` `OutboxRelay`): publish to the real broker
   (payload is already broker-ready) and consume events in downstream services.
 

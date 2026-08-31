@@ -20,6 +20,16 @@
             <artifactId>common-lib</artifactId>
         </dependency>
 
+        <!-- gRPC posting endpoint (see ADR-007): contract + server transport. -->
+        <dependency>
+            <groupId>com.bank</groupId>
+            <artifactId>ledger-grpc-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-netty-shaded</artifactId>
+        </dependency>
+
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>

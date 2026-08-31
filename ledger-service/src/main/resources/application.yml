@@ -45,3 +45,10 @@ springdoc:
 logging:
   pattern:
     level: "%5p [${spring.application.name},correlationId=%X{correlationId:-n/a}]"
+
+# gRPC posting endpoint (ADR-007). Off by default so REST-only deployments are unchanged;
+# docker-compose turns it on and publishes ${GRPC_PORT}.
+grpc:
+  server:
+    enabled: ${GRPC_SERVER_ENABLED:false}
+    port: ${GRPC_PORT:9090}

@@ -1,0 +1,43 @@
+syntax = "proto3";
+
+package bank.ledger.v1;
+
+option java_multiple_files = true;
+option java_package = "com.bank.ledger.grpc.v1";
+option java_outer_classname = "LedgerPostingProto";
+
+// Posting into the general ledger. Owned by ledger-service.
+service LedgerPosting {
+  // Posts one balanced double-entry journal entry. Idempotent on idempotency_key: replaying the
+  // same key returns the original entry rather than posting a second time.
+  rpc PostJournalEntry (PostJournalEntryRequest) returns (PostJournalEntryResponse);
+}
+
+enum Direction {
+  DIRECTION_UNSPECIFIED = 0;
+  DEBIT = 1;
+  CREDIT = 2;
+}
+
+message JournalLine {
+  // Ledger account code to post against.
+  string account_code = 1;
+  Direction direction = 2;
+  // Decimal amount as a string (e.g. "125.00"). Deliberately not a float or double: money must
+  // survive the wire exactly, and proto has no decimal type.
+  string amount = 3;
+}
+
+message PostJournalEntryRequest {
+  string idempotency_key = 1;
+  string narrative = 2;
+  // ISO-8601 date (yyyy-MM-dd). Empty means "today".
+  string value_date = 3;
+  repeated JournalLine lines = 4;
+}
+
+message PostJournalEntryResponse {
+  // Ledger's id for the posted entry.
+  string entry_id = 1;
+  string status = 2;
+}
