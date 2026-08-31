@@ -1,0 +1,433 @@
+{
+  "info" : {
+    "description" : "Onboarding, KYC/screening outcome, consents, and Open Banking consents. Generated from the service's controllers. Set {{baseUrl}} to the gateway (http://localhost:8080) to go through the edge instead of hitting the service directly. Authorization is disabled by default: enable it and set {{accessToken}} once gateway.security.enabled=true.",
+    "name" : "Core Banking — customer-service",
+    "schema" : "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item" : [
+    {
+      "event" : [
+        {
+          "listen" : "test",
+          "script" : {
+            "exec" : [
+              "const ok = pm.response.code < 300;",
+              "pm.test(\"2xx\", () => pm.expect(ok).to.be.true);",
+              "if (ok) { pm.collectionVariables.set(\"customerId\", pm.response.json().id); }"
+            ],
+            "type" : "text/javascript"
+          }
+        }
+      ],
+      "name" : "Onboard customer",
+      "request" : {
+        "body" : {
+          "mode" : "raw",
+          "options" : {
+            "raw" : {
+              "language" : "json"
+            }
+          },
+          "raw" : "{\n  \"channel\" : \"WEB\",\n  \"dataProcessingConsent\" : true,\n  \"dateOfBirth\" : \"1985-12-10\",\n  \"email\" : \"ada.{{$randomInt}}@example.com\",\n  \"firstName\" : \"Ada\",\n  \"lastName\" : \"Lovelace\",\n  \"nationality\" : \"GB\",\n  \"phone\" : \"+447700900123\",\n  \"taxId\" : \"QQ123456C\"\n}\n"
+        },
+        "description" : "nationality must be ISO-3166 alpha-2. Runs KYC then screening, then settles status.",
+        "header" : [
+          {
+            "key" : "Content-Type",
+            "value" : "application/json"
+          },
+          {
+            "key" : "X-Correlation-Id",
+            "value" : "postman-{{$guid}}"
+          },
+          {
+            "key" : "X-Organization-Id",
+            "value" : "{{organizationId}}"
+          },
+          {
+            "disabled" : true,
+            "key" : "Authorization",
+            "value" : "Bearer {{accessToken}}"
+          }
+        ],
+        "method" : "POST",
+        "url" : {
+          "host" : [
+            "{{baseUrl}}"
+          ],
+          "path" : [
+            "api",
+            "v1",
+            "customers"
+          ],
+          "raw" : "{{baseUrl}}/api/v1/customers"
+        }
+      }
+    },
+    {
+      "event" : [
+        {
+          "listen" : "test",
+          "script" : {
+            "exec" : [
+              "pm.test(\"2xx\", () => pm.expect(pm.response.code).to.be.below(300));"
+            ],
+            "type" : "text/javascript"
+          }
+        }
+      ],
+      "name" : "Get customer",
+      "request" : {
+        "description" : "",
+        "header" : [
+          {
+            "key" : "X-Correlation-Id",
+            "value" : "postman-{{$guid}}"
+          },
+          {
+            "key" : "X-Organization-Id",
+            "value" : "{{organizationId}}"
+          },
+          {
+            "disabled" : true,
+            "key" : "Authorization",
+            "value" : "Bearer {{accessToken}}"
+          }
+        ],
+        "method" : "GET",
+        "url" : {
+          "host" : [
+            "{{baseUrl}}"
+          ],
+          "path" : [
+            "api",
+            "v1",
+            "customers",
+            "{{customerId}}"
+          ],
+          "raw" : "{{baseUrl}}/api/v1/customers/{{customerId}}"
+        }
+      }
+    },
+    {
+      "name" : "Customer change log",
+      "request" : {
+        "description" : "",
+        "header" : [
+          {
+            "key" : "X-Correlation-Id",
+            "value" : "postman-{{$guid}}"
+          },
+          {
+            "key" : "X-Organization-Id",
+            "value" : "{{organizationId}}"
+          },
+          {
+            "disabled" : true,
+            "key" : "Authorization",
+            "value" : "Bearer {{accessToken}}"
+          }
+        ],
+        "method" : "GET",
+        "url" : {
+          "host" : [
+            "{{baseUrl}}"
+          ],
+          "path" : [
+            "api",
+            "v1",
+            "customers",
+            "{{customerId}}",
+            "change-log"
+          ],
+          "raw" : "{{baseUrl}}/api/v1/customers/{{customerId}}/change-log"
+        }
+      }
+    },
+    {
+      "name" : "List consents",
+      "request" : {
+        "description" : "",
+        "header" : [
+          {
+            "key" : "X-Correlation-Id",
+            "value" : "postman-{{$guid}}"
+          },
+          {
+            "key" : "X-Organization-Id",
+            "value" : "{{organizationId}}"
+          },
+          {
+            "disabled" : true,
+            "key" : "Authorization",
+            "value" : "Bearer {{accessToken}}"
+          }
+        ],
+        "method" : "GET",
+        "url" : {
+          "host" : [
+            "{{baseUrl}}"
+          ],
+          "path" : [
+            "api",
+            "v1",
+            "customers",
+            "{{customerId}}",
+            "consents"
+          ],
+          "raw" : "{{baseUrl}}/api/v1/customers/{{customerId}}/consents"
+        }
+      }
+    },
+    {
+      "name" : "Record consent",
+      "request" : {
+        "body" : {
+          "mode" : "raw",
+          "options" : {
+            "raw" : {
+              "language" : "json"
+            }
+          },
+          "raw" : "{\n  \"channel\" : \"WEB\",\n  \"consentType\" : \"MARKETING\",\n  \"granted\" : true\n}\n"
+        },
+        "description" : "consentType: DATA_PROCESSING | MARKETING | OPEN_BANKING. Append-only.",
+        "header" : [
+          {
+            "key" : "Content-Type",
+            "value" : "application/json"
+          },
+          {
+            "key" : "X-Correlation-Id",
+            "value" : "postman-{{$guid}}"
+          },
+          {
+            "key" : "X-Organization-Id",
+            "value" : "{{organizationId}}"
+          },
+          {
+            "disabled" : true,
+            "key" : "Authorization",
+            "value" : "Bearer {{accessToken}}"
+          }
+        ],
+        "method" : "POST",
+        "url" : {
+          "host" : [
+            "{{baseUrl}}"
+          ],
+          "path" : [
+            "api",
+            "v1",
+            "customers",
+            "{{customerId}}",
+            "consents"
+          ],
+          "raw" : "{{baseUrl}}/api/v1/customers/{{customerId}}/consents"
+        }
+      }
+    },
+    {
+      "event" : [
+        {
+          "listen" : "test",
+          "script" : {
+            "exec" : [
+              "const ok = pm.response.code < 300;",
+              "pm.test(\"2xx\", () => pm.expect(ok).to.be.true);",
+              "if (ok) { pm.collectionVariables.set(\"consentReference\", pm.response.json().consentReference); }"
+            ],
+            "type" : "text/javascript"
+          }
+        }
+      ],
+      "name" : "Request Open Banking consent",
+      "request" : {
+        "body" : {
+          "mode" : "raw",
+          "options" : {
+            "raw" : {
+              "language" : "json"
+            }
+          },
+          "raw" : "{\n  \"consentReference\" : \"ob-{{$guid}}\",\n  \"customerId\" : \"{{customerId}}\",\n  \"scopes\" : [\n    \"ACCOUNT_INFO\",\n    \"BALANCES\"\n  ],\n  \"tpp\" : \"Example TPP Ltd\",\n  \"validityDays\" : 90\n}\n"
+        },
+        "description" : "scopes: ACCOUNT_INFO | BALANCES | TRANSACTIONS | PAYMENT_INITIATION.",
+        "header" : [
+          {
+            "key" : "Content-Type",
+            "value" : "application/json"
+          },
+          {
+            "key" : "X-Correlation-Id",
+            "value" : "postman-{{$guid}}"
+          },
+          {
+            "key" : "X-Organization-Id",
+            "value" : "{{organizationId}}"
+          },
+          {
+            "disabled" : true,
+            "key" : "Authorization",
+            "value" : "Bearer {{accessToken}}"
+          }
+        ],
+        "method" : "POST",
+        "url" : {
+          "host" : [
+            "{{baseUrl}}"
+          ],
+          "path" : [
+            "api",
+            "v1",
+            "open-banking",
+            "consents"
+          ],
+          "raw" : "{{baseUrl}}/api/v1/open-banking/consents"
+        }
+      }
+    },
+    {
+      "name" : "Get Open Banking consent",
+      "request" : {
+        "description" : "",
+        "header" : [
+          {
+            "key" : "X-Correlation-Id",
+            "value" : "postman-{{$guid}}"
+          },
+          {
+            "key" : "X-Organization-Id",
+            "value" : "{{organizationId}}"
+          },
+          {
+            "disabled" : true,
+            "key" : "Authorization",
+            "value" : "Bearer {{accessToken}}"
+          }
+        ],
+        "method" : "GET",
+        "url" : {
+          "host" : [
+            "{{baseUrl}}"
+          ],
+          "path" : [
+            "api",
+            "v1",
+            "open-banking",
+            "consents",
+            "{{consentReference}}"
+          ],
+          "raw" : "{{baseUrl}}/api/v1/open-banking/consents/{{consentReference}}"
+        }
+      }
+    },
+    {
+      "name" : "Authorise consent (SCA)",
+      "request" : {
+        "body" : {
+          "mode" : "raw",
+          "options" : {
+            "raw" : {
+              "language" : "json"
+            }
+          },
+          "raw" : "{\n  \"scaReference\" : \"sca-{{$guid}}\"\n}\n"
+        },
+        "description" : "Moves the consent to authorised.",
+        "header" : [
+          {
+            "key" : "Content-Type",
+            "value" : "application/json"
+          },
+          {
+            "key" : "X-Correlation-Id",
+            "value" : "postman-{{$guid}}"
+          },
+          {
+            "key" : "X-Organization-Id",
+            "value" : "{{organizationId}}"
+          },
+          {
+            "disabled" : true,
+            "key" : "Authorization",
+            "value" : "Bearer {{accessToken}}"
+          }
+        ],
+        "method" : "POST",
+        "url" : {
+          "host" : [
+            "{{baseUrl}}"
+          ],
+          "path" : [
+            "api",
+            "v1",
+            "open-banking",
+            "consents",
+            "{{consentReference}}",
+            "authorise"
+          ],
+          "raw" : "{{baseUrl}}/api/v1/open-banking/consents/{{consentReference}}/authorise"
+        }
+      }
+    },
+    {
+      "name" : "Revoke consent",
+      "request" : {
+        "description" : "",
+        "header" : [
+          {
+            "key" : "X-Correlation-Id",
+            "value" : "postman-{{$guid}}"
+          },
+          {
+            "key" : "X-Organization-Id",
+            "value" : "{{organizationId}}"
+          },
+          {
+            "disabled" : true,
+            "key" : "Authorization",
+            "value" : "Bearer {{accessToken}}"
+          }
+        ],
+        "method" : "POST",
+        "url" : {
+          "host" : [
+            "{{baseUrl}}"
+          ],
+          "path" : [
+            "api",
+            "v1",
+            "open-banking",
+            "consents",
+            "{{consentReference}}",
+            "revoke"
+          ],
+          "raw" : "{{baseUrl}}/api/v1/open-banking/consents/{{consentReference}}/revoke"
+        }
+      }
+    }
+  ],
+  "variable" : [
+    {
+      "key" : "baseUrl",
+      "value" : "http://localhost:8082"
+    },
+    {
+      "key" : "organizationId",
+      "value" : "DEFAULT"
+    },
+    {
+      "key" : "accessToken",
+      "value" : ""
+    },
+    {
+      "key" : "customerId",
+      "value" : ""
+    },
+    {
+      "key" : "consentReference",
+      "value" : ""
+    }
+  ]
+}

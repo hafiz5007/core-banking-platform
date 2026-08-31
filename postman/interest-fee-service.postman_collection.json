@@ -1,0 +1,286 @@
+{
+  "info" : {
+    "description" : "Interest accrual, capitalization, fees, and the end-of-day batch. Generated from the service's controllers. Set {{baseUrl}} to the gateway (http://localhost:8080) to go through the edge instead of hitting the service directly. Authorization is disabled by default: enable it and set {{accessToken}} once gateway.security.enabled=true.",
+    "name" : "Core Banking — interest-fee-service",
+    "schema" : "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item" : [
+    {
+      "event" : [
+        {
+          "listen" : "test",
+          "script" : {
+            "exec" : [
+              "pm.test(\"2xx\", () => pm.expect(pm.response.code).to.be.below(300));"
+            ],
+            "type" : "text/javascript"
+          }
+        }
+      ],
+      "name" : "Open interest position",
+      "request" : {
+        "body" : {
+          "mode" : "raw",
+          "options" : {
+            "raw" : {
+              "language" : "json"
+            }
+          },
+          "raw" : "{\n  \"accountCode\" : \"{{accountCode}}\",\n  \"annualRatePercent\" : \"3.65\",\n  \"currencyCode\" : \"USD\",\n  \"dayCount\" : \"ACT_365\",\n  \"principal\" : \"10000.00\"\n}\n"
+        },
+        "description" : "dayCount: ACT_365 | ACT_360 | THIRTY_360.",
+        "header" : [
+          {
+            "key" : "Content-Type",
+            "value" : "application/json"
+          },
+          {
+            "key" : "X-Correlation-Id",
+            "value" : "postman-{{$guid}}"
+          },
+          {
+            "key" : "X-Organization-Id",
+            "value" : "{{organizationId}}"
+          },
+          {
+            "disabled" : true,
+            "key" : "Authorization",
+            "value" : "Bearer {{accessToken}}"
+          }
+        ],
+        "method" : "POST",
+        "url" : {
+          "host" : [
+            "{{baseUrl}}"
+          ],
+          "path" : [
+            "api",
+            "v1",
+            "interest",
+            "positions"
+          ],
+          "raw" : "{{baseUrl}}/api/v1/interest/positions"
+        }
+      }
+    },
+    {
+      "name" : "Get position",
+      "request" : {
+        "description" : "",
+        "header" : [
+          {
+            "key" : "X-Correlation-Id",
+            "value" : "postman-{{$guid}}"
+          },
+          {
+            "key" : "X-Organization-Id",
+            "value" : "{{organizationId}}"
+          },
+          {
+            "disabled" : true,
+            "key" : "Authorization",
+            "value" : "Bearer {{accessToken}}"
+          }
+        ],
+        "method" : "GET",
+        "url" : {
+          "host" : [
+            "{{baseUrl}}"
+          ],
+          "path" : [
+            "api",
+            "v1",
+            "interest",
+            "positions",
+            "{{accountCode}}"
+          ],
+          "raw" : "{{baseUrl}}/api/v1/interest/positions/{{accountCode}}"
+        }
+      }
+    },
+    {
+      "name" : "Accrue interest",
+      "request" : {
+        "description" : "Accrues from the last accrual date up to upTo (ISO date).",
+        "header" : [
+          {
+            "key" : "X-Correlation-Id",
+            "value" : "postman-{{$guid}}"
+          },
+          {
+            "key" : "X-Organization-Id",
+            "value" : "{{organizationId}}"
+          },
+          {
+            "disabled" : true,
+            "key" : "Authorization",
+            "value" : "Bearer {{accessToken}}"
+          }
+        ],
+        "method" : "POST",
+        "url" : {
+          "host" : [
+            "{{baseUrl}}"
+          ],
+          "path" : [
+            "api",
+            "v1",
+            "interest",
+            "positions",
+            "{{accountCode}}",
+            "accrue"
+          ],
+          "query" : [
+            {
+              "key" : "upTo",
+              "value" : "2026-12-31"
+            }
+          ],
+          "raw" : "{{baseUrl}}/api/v1/interest/positions/{{accountCode}}/accrue?upTo=2026-12-31"
+        }
+      }
+    },
+    {
+      "name" : "Capitalize interest",
+      "request" : {
+        "description" : "Rolls accrued interest into principal and resets accrued to zero.",
+        "header" : [
+          {
+            "key" : "X-Correlation-Id",
+            "value" : "postman-{{$guid}}"
+          },
+          {
+            "key" : "X-Organization-Id",
+            "value" : "{{organizationId}}"
+          },
+          {
+            "disabled" : true,
+            "key" : "Authorization",
+            "value" : "Bearer {{accessToken}}"
+          }
+        ],
+        "method" : "POST",
+        "url" : {
+          "host" : [
+            "{{baseUrl}}"
+          ],
+          "path" : [
+            "api",
+            "v1",
+            "interest",
+            "positions",
+            "{{accountCode}}",
+            "capitalize"
+          ],
+          "raw" : "{{baseUrl}}/api/v1/interest/positions/{{accountCode}}/capitalize"
+        }
+      }
+    },
+    {
+      "name" : "Apply fee",
+      "request" : {
+        "body" : {
+          "mode" : "raw",
+          "options" : {
+            "raw" : {
+              "language" : "json"
+            }
+          },
+          "raw" : "{\n  \"accountCode\" : \"{{accountCode}}\",\n  \"amount\" : \"5.00\",\n  \"currencyCode\" : \"USD\",\n  \"feeType\" : \"MAINTENANCE\"\n}\n"
+        },
+        "description" : "feeType: MAINTENANCE | TRANSACTION | PENALTY | FX_MARKUP.",
+        "header" : [
+          {
+            "key" : "Content-Type",
+            "value" : "application/json"
+          },
+          {
+            "key" : "X-Correlation-Id",
+            "value" : "postman-{{$guid}}"
+          },
+          {
+            "key" : "X-Organization-Id",
+            "value" : "{{organizationId}}"
+          },
+          {
+            "disabled" : true,
+            "key" : "Authorization",
+            "value" : "Bearer {{accessToken}}"
+          }
+        ],
+        "method" : "POST",
+        "url" : {
+          "host" : [
+            "{{baseUrl}}"
+          ],
+          "path" : [
+            "api",
+            "v1",
+            "interest",
+            "fees"
+          ],
+          "raw" : "{{baseUrl}}/api/v1/interest/fees"
+        }
+      }
+    },
+    {
+      "name" : "Run end-of-day batch",
+      "request" : {
+        "description" : "Accrues every position up to businessDate.",
+        "header" : [
+          {
+            "key" : "X-Correlation-Id",
+            "value" : "postman-{{$guid}}"
+          },
+          {
+            "key" : "X-Organization-Id",
+            "value" : "{{organizationId}}"
+          },
+          {
+            "disabled" : true,
+            "key" : "Authorization",
+            "value" : "Bearer {{accessToken}}"
+          }
+        ],
+        "method" : "POST",
+        "url" : {
+          "host" : [
+            "{{baseUrl}}"
+          ],
+          "path" : [
+            "api",
+            "v1",
+            "interest",
+            "eod",
+            "run"
+          ],
+          "query" : [
+            {
+              "key" : "businessDate",
+              "value" : "2026-12-31"
+            }
+          ],
+          "raw" : "{{baseUrl}}/api/v1/interest/eod/run?businessDate=2026-12-31"
+        }
+      }
+    }
+  ],
+  "variable" : [
+    {
+      "key" : "baseUrl",
+      "value" : "http://localhost:8085"
+    },
+    {
+      "key" : "organizationId",
+      "value" : "DEFAULT"
+    },
+    {
+      "key" : "accessToken",
+      "value" : ""
+    },
+    {
+      "key" : "accountCode",
+      "value" : "DEP-001"
+    }
+  ]
+}

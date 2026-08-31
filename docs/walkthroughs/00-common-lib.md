@@ -2,7 +2,6 @@
 # Walkthrough: Common Library
 
 ## Purpose (2 sentences)
-What business capability does it own?
 Common-lib is the shared foundation module for platform-wide concerns, not a standalone business capability. It provides exact money handling, standardized API error types, correlation-id tracing, and tenant context propagation so every service follows the same infrastructure rules.
 
 
@@ -14,7 +13,7 @@ None. Common-lib is a plain Java library, so it does not expose REST endpoints o
 No direct Postgres tables live in common-lib. It only defines reusable value objects and request-scoped helpers; services such as account-service own the actual database schema, which keeps persistence close to the owning bounded context and avoids a brittle shared schema.
 
 ## Key design decisions (3-5)
-For each:
+
 - Decision: Use an immutable `Money` value object backed by `BigDecimal` and ISO-4217 currency.
 - Why: It prevents floating-point rounding errors and forbids cross-currency arithmetic by design.
 - Alternative considered: Using primitive numeric types or raw `BigDecimal` values everywhere.
@@ -54,4 +53,3 @@ For each:
 - Add a shared exception handler and response mapping convention if more services start duplicating it.
 - Add more tests around tenant-context cleanup and filter ordering.
 - Expand the library only for truly cross-cutting concerns; keep business logic in the owning services.
-```

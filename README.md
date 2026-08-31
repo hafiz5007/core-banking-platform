@@ -65,10 +65,37 @@ mvn -DskipTests package
 
 ## Run locally
 
+All configuration and every secret live in a single `.env` file at the repo root. Every
+variable is prefixed `CBP_` so this project cannot collide with another on the same machine. Copy the template
+and fill it in — `.env` is gitignored and is never committed:
+
 ```bash
-# Brings up PostgreSQL + account-service
+cp .env.example .env
+```
+
+`.env.example` documents every variable, what it does, and its safe default. Nothing has a weak
+default: an unset variable turns a feature *off* rather than enabling it insecurely.
+
+```bash
+# Brings up PostgreSQL and the services
 docker compose up --build
 ```
+
+### Turning on service-to-service authentication
+
+Internal calls (account/card/interest-fee/payment → ledger, payment → risk-aml) can carry a
+short-lived JWT (ADR-008). It is off by default. To enable it, generate a secret and set two values
+in `.env`:
+
+```bash
+echo "CBP_SERVICE_AUTH_SECRET=$(openssl rand -base64 48)" >> .env
+echo "CBP_SERVICE_AUTH_ENABLED=true" >> .env
+```
+
+With this on, ledger-service and risk-aml-service refuse any inbound call that does not present a
+valid token, on both REST and gRPC. Health and metrics endpoints stay open so probes keep working.
+Enable callers before receivers when rolling this out across environments — see
+`service-auth.require-inbound` in `.env.example`.
 
 Then (account-service on 8081, customer-service on 8082):
 
@@ -146,6 +173,17 @@ curl -s -X POST http://localhost:8084/api/v1/payments -H 'Content-Type: applicat
 # The response includes fxRate, targetAmount and targetCurrencyCode. A creditor containing "RETURN"
 # is rejected by SWIFT -> the payment is COMPENSATED (reversed).
 ```
+
+## Testing the API
+
+One Postman collection per service in `postman/`, covering every REST endpoint, plus environments
+for local, gateway and sandbox. See `postman/README.md`.
+
+- **Releasing to a test server:** `docs/DEPLOYMENT_SANDBOX.md` — what sandbox mode means here, how
+  to switch every feature on, how to prove the switches took effect, and what still stops it being
+  production.
+- **Debugging and testing:** `docs/DEBUG_TESTING.md` — running the suites, reading the reports,
+  tracing a request by correlation id, attaching a debugger, and the traps this codebase sets.
 
 ## Project layout
 

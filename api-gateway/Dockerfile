@@ -1,9 +1,9 @@
 # Multi-stage build for the api-gateway.
 FROM maven:3.9-eclipse-temurin-21 AS build
 WORKDIR /workspace
-COPY pom.xml .
-COPY common-lib common-lib
-COPY api-gateway api-gateway
+# The parent pom declares every module, so Maven needs the whole reactor present even to
+# build one service. .dockerignore keeps the context small.
+COPY . .
 RUN mvn -q -pl api-gateway -am -DskipTests package
 
 FROM eclipse-temurin:21-jre

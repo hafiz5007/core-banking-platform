@@ -1,0 +1,434 @@
+{
+  "info" : {
+    "description" : "Card issuance, controls, authorizations, settlement and reconciliation. Generated from the service's controllers. Set {{baseUrl}} to the gateway (http://localhost:8080) to go through the edge instead of hitting the service directly. Authorization is disabled by default: enable it and set {{accessToken}} once gateway.security.enabled=true.",
+    "name" : "Core Banking — card-service",
+    "schema" : "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item" : [
+    {
+      "event" : [
+        {
+          "listen" : "test",
+          "script" : {
+            "exec" : [
+              "const ok = pm.response.code < 300;",
+              "pm.test(\"2xx\", () => pm.expect(ok).to.be.true);",
+              "if (ok) { pm.collectionVariables.set(\"cardId\", pm.response.json().id); }"
+            ],
+            "type" : "text/javascript"
+          }
+        }
+      ],
+      "name" : "Issue card",
+      "request" : {
+        "body" : {
+          "mode" : "raw",
+          "options" : {
+            "raw" : {
+              "language" : "json"
+            }
+          },
+          "raw" : "{\n  \"accountCode\" : \"DEP-001\",\n  \"currencyCode\" : \"USD\",\n  \"openingAvailable\" : \"1000.00\"\n}\n"
+        },
+        "description" : "Returns a tokenised card; the PAN is never stored.",
+        "header" : [
+          {
+            "key" : "Content-Type",
+            "value" : "application/json"
+          },
+          {
+            "key" : "X-Correlation-Id",
+            "value" : "postman-{{$guid}}"
+          },
+          {
+            "key" : "X-Organization-Id",
+            "value" : "{{organizationId}}"
+          },
+          {
+            "disabled" : true,
+            "key" : "Authorization",
+            "value" : "Bearer {{accessToken}}"
+          }
+        ],
+        "method" : "POST",
+        "url" : {
+          "host" : [
+            "{{baseUrl}}"
+          ],
+          "path" : [
+            "api",
+            "v1",
+            "cards"
+          ],
+          "raw" : "{{baseUrl}}/api/v1/cards"
+        }
+      }
+    },
+    {
+      "event" : [
+        {
+          "listen" : "test",
+          "script" : {
+            "exec" : [
+              "pm.test(\"2xx\", () => pm.expect(pm.response.code).to.be.below(300));"
+            ],
+            "type" : "text/javascript"
+          }
+        }
+      ],
+      "name" : "Get card",
+      "request" : {
+        "description" : "",
+        "header" : [
+          {
+            "key" : "X-Correlation-Id",
+            "value" : "postman-{{$guid}}"
+          },
+          {
+            "key" : "X-Organization-Id",
+            "value" : "{{organizationId}}"
+          },
+          {
+            "disabled" : true,
+            "key" : "Authorization",
+            "value" : "Bearer {{accessToken}}"
+          }
+        ],
+        "method" : "GET",
+        "url" : {
+          "host" : [
+            "{{baseUrl}}"
+          ],
+          "path" : [
+            "api",
+            "v1",
+            "cards",
+            "{{cardId}}"
+          ],
+          "raw" : "{{baseUrl}}/api/v1/cards/{{cardId}}"
+        }
+      }
+    },
+    {
+      "name" : "Update controls",
+      "request" : {
+        "body" : {
+          "mode" : "raw",
+          "options" : {
+            "raw" : {
+              "language" : "json"
+            }
+          },
+          "raw" : "{\n  \"atm\" : true,\n  \"contactless\" : true,\n  \"currencyCode\" : \"USD\",\n  \"international\" : false,\n  \"online\" : true,\n  \"perTransactionLimit\" : \"250.00\"\n}\n"
+        },
+        "description" : "Channel toggles plus a per-transaction ceiling.",
+        "header" : [
+          {
+            "key" : "Content-Type",
+            "value" : "application/json"
+          },
+          {
+            "key" : "X-Correlation-Id",
+            "value" : "postman-{{$guid}}"
+          },
+          {
+            "key" : "X-Organization-Id",
+            "value" : "{{organizationId}}"
+          },
+          {
+            "disabled" : true,
+            "key" : "Authorization",
+            "value" : "Bearer {{accessToken}}"
+          }
+        ],
+        "method" : "POST",
+        "url" : {
+          "host" : [
+            "{{baseUrl}}"
+          ],
+          "path" : [
+            "api",
+            "v1",
+            "cards",
+            "{{cardId}}",
+            "controls"
+          ],
+          "raw" : "{{baseUrl}}/api/v1/cards/{{cardId}}/controls"
+        }
+      }
+    },
+    {
+      "event" : [
+        {
+          "listen" : "test",
+          "script" : {
+            "exec" : [
+              "const ok = pm.response.code < 300;",
+              "pm.test(\"2xx\", () => pm.expect(ok).to.be.true);",
+              "if (ok) { pm.collectionVariables.set(\"authId\", pm.response.json().id); }"
+            ],
+            "type" : "text/javascript"
+          }
+        }
+      ],
+      "name" : "Authorize transaction",
+      "request" : {
+        "body" : {
+          "mode" : "raw",
+          "options" : {
+            "raw" : {
+              "language" : "json"
+            }
+          },
+          "raw" : "{\n  \"amount\" : \"42.00\",\n  \"channel\" : \"POS\",\n  \"currencyCode\" : \"USD\",\n  \"international\" : false,\n  \"merchant\" : \"Coffee Shop\"\n}\n"
+        },
+        "description" : "channel: POS | ONLINE | ATM | CONTACTLESS. Declined if a control blocks it.",
+        "header" : [
+          {
+            "key" : "Content-Type",
+            "value" : "application/json"
+          },
+          {
+            "key" : "X-Correlation-Id",
+            "value" : "postman-{{$guid}}"
+          },
+          {
+            "key" : "X-Organization-Id",
+            "value" : "{{organizationId}}"
+          },
+          {
+            "disabled" : true,
+            "key" : "Authorization",
+            "value" : "Bearer {{accessToken}}"
+          }
+        ],
+        "method" : "POST",
+        "url" : {
+          "host" : [
+            "{{baseUrl}}"
+          ],
+          "path" : [
+            "api",
+            "v1",
+            "cards",
+            "{{cardId}}",
+            "authorizations"
+          ],
+          "raw" : "{{baseUrl}}/api/v1/cards/{{cardId}}/authorizations"
+        }
+      }
+    },
+    {
+      "name" : "Settle authorization",
+      "request" : {
+        "description" : "Posts the settlement to the ledger.",
+        "header" : [
+          {
+            "key" : "X-Correlation-Id",
+            "value" : "postman-{{$guid}}"
+          },
+          {
+            "key" : "X-Organization-Id",
+            "value" : "{{organizationId}}"
+          },
+          {
+            "disabled" : true,
+            "key" : "Authorization",
+            "value" : "Bearer {{accessToken}}"
+          }
+        ],
+        "method" : "POST",
+        "url" : {
+          "host" : [
+            "{{baseUrl}}"
+          ],
+          "path" : [
+            "api",
+            "v1",
+            "cards",
+            "authorizations",
+            "{{authId}}",
+            "settle"
+          ],
+          "raw" : "{{baseUrl}}/api/v1/cards/authorizations/{{authId}}/settle"
+        }
+      }
+    },
+    {
+      "name" : "Reverse authorization",
+      "request" : {
+        "description" : "",
+        "header" : [
+          {
+            "key" : "X-Correlation-Id",
+            "value" : "postman-{{$guid}}"
+          },
+          {
+            "key" : "X-Organization-Id",
+            "value" : "{{organizationId}}"
+          },
+          {
+            "disabled" : true,
+            "key" : "Authorization",
+            "value" : "Bearer {{accessToken}}"
+          }
+        ],
+        "method" : "POST",
+        "url" : {
+          "host" : [
+            "{{baseUrl}}"
+          ],
+          "path" : [
+            "api",
+            "v1",
+            "cards",
+            "authorizations",
+            "{{authId}}",
+            "reversal"
+          ],
+          "raw" : "{{baseUrl}}/api/v1/cards/authorizations/{{authId}}/reversal"
+        }
+      }
+    },
+    {
+      "name" : "Block card",
+      "request" : {
+        "description" : "",
+        "header" : [
+          {
+            "key" : "X-Correlation-Id",
+            "value" : "postman-{{$guid}}"
+          },
+          {
+            "key" : "X-Organization-Id",
+            "value" : "{{organizationId}}"
+          },
+          {
+            "disabled" : true,
+            "key" : "Authorization",
+            "value" : "Bearer {{accessToken}}"
+          }
+        ],
+        "method" : "POST",
+        "url" : {
+          "host" : [
+            "{{baseUrl}}"
+          ],
+          "path" : [
+            "api",
+            "v1",
+            "cards",
+            "{{cardId}}",
+            "block"
+          ],
+          "raw" : "{{baseUrl}}/api/v1/cards/{{cardId}}/block"
+        }
+      }
+    },
+    {
+      "name" : "Unblock card",
+      "request" : {
+        "description" : "",
+        "header" : [
+          {
+            "key" : "X-Correlation-Id",
+            "value" : "postman-{{$guid}}"
+          },
+          {
+            "key" : "X-Organization-Id",
+            "value" : "{{organizationId}}"
+          },
+          {
+            "disabled" : true,
+            "key" : "Authorization",
+            "value" : "Bearer {{accessToken}}"
+          }
+        ],
+        "method" : "POST",
+        "url" : {
+          "host" : [
+            "{{baseUrl}}"
+          ],
+          "path" : [
+            "api",
+            "v1",
+            "cards",
+            "{{cardId}}",
+            "unblock"
+          ],
+          "raw" : "{{baseUrl}}/api/v1/cards/{{cardId}}/unblock"
+        }
+      }
+    },
+    {
+      "name" : "Reconcile settlement file",
+      "request" : {
+        "body" : {
+          "mode" : "raw",
+          "options" : {
+            "raw" : {
+              "language" : "json"
+            }
+          },
+          "raw" : "[\n  {\n    \"amount\" : \"42.00\",\n    \"authorizationId\" : \"{{authId}}\",\n    \"currencyCode\" : \"USD\"\n  }\n]\n"
+        },
+        "description" : "Body is a list of scheme settlement rows; unmatched rows are reported as breaks.",
+        "header" : [
+          {
+            "key" : "Content-Type",
+            "value" : "application/json"
+          },
+          {
+            "key" : "X-Correlation-Id",
+            "value" : "postman-{{$guid}}"
+          },
+          {
+            "key" : "X-Organization-Id",
+            "value" : "{{organizationId}}"
+          },
+          {
+            "disabled" : true,
+            "key" : "Authorization",
+            "value" : "Bearer {{accessToken}}"
+          }
+        ],
+        "method" : "POST",
+        "url" : {
+          "host" : [
+            "{{baseUrl}}"
+          ],
+          "path" : [
+            "api",
+            "v1",
+            "cards",
+            "settlement",
+            "reconcile"
+          ],
+          "raw" : "{{baseUrl}}/api/v1/cards/settlement/reconcile"
+        }
+      }
+    }
+  ],
+  "variable" : [
+    {
+      "key" : "baseUrl",
+      "value" : "http://localhost:8086"
+    },
+    {
+      "key" : "organizationId",
+      "value" : "DEFAULT"
+    },
+    {
+      "key" : "accessToken",
+      "value" : ""
+    },
+    {
+      "key" : "cardId",
+      "value" : ""
+    },
+    {
+      "key" : "authId",
+      "value" : ""
+    }
+  ]
+}

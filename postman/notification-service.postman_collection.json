@@ -1,0 +1,193 @@
+{
+  "info" : {
+    "description" : "Alerts and OTP. Also consumes payment.events from Kafka — that path has no REST entry point, see the debug guide for how to exercise it. Generated from the service's controllers. Set {{baseUrl}} to the gateway (http://localhost:8080) to go through the edge instead of hitting the service directly. Authorization is disabled by default: enable it and set {{accessToken}} once gateway.security.enabled=true.",
+    "name" : "Core Banking — notification-service",
+    "schema" : "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item" : [
+    {
+      "event" : [
+        {
+          "listen" : "test",
+          "script" : {
+            "exec" : [
+              "pm.test(\"2xx\", () => pm.expect(pm.response.code).to.be.below(300));"
+            ],
+            "type" : "text/javascript"
+          }
+        }
+      ],
+      "name" : "Send alert",
+      "request" : {
+        "body" : {
+          "mode" : "raw",
+          "options" : {
+            "raw" : {
+              "language" : "json"
+            }
+          },
+          "raw" : "{\n  \"channel\" : \"EMAIL\",\n  \"message\" : \"Payment of 42.00 USD confirmed.\",\n  \"recipient\" : \"ada@example.com\",\n  \"type\" : \"TRANSACTION_ALERT\"\n}\n"
+        },
+        "description" : "type: TRANSACTION_ALERT | SECURITY_ALERT | OTP | STATEMENT. channel: SMS | EMAIL | PUSH. Message max 500 chars.",
+        "header" : [
+          {
+            "key" : "Content-Type",
+            "value" : "application/json"
+          },
+          {
+            "key" : "X-Correlation-Id",
+            "value" : "postman-{{$guid}}"
+          },
+          {
+            "key" : "X-Organization-Id",
+            "value" : "{{organizationId}}"
+          },
+          {
+            "disabled" : true,
+            "key" : "Authorization",
+            "value" : "Bearer {{accessToken}}"
+          }
+        ],
+        "method" : "POST",
+        "url" : {
+          "host" : [
+            "{{baseUrl}}"
+          ],
+          "path" : [
+            "api",
+            "v1",
+            "notifications",
+            "alerts"
+          ],
+          "raw" : "{{baseUrl}}/api/v1/notifications/alerts"
+        }
+      }
+    },
+    {
+      "event" : [
+        {
+          "listen" : "test",
+          "script" : {
+            "exec" : [
+              "const ok = pm.response.code < 300;",
+              "pm.test(\"2xx\", () => pm.expect(ok).to.be.true);",
+              "if (ok) { pm.collectionVariables.set(\"challengeId\", pm.response.json().challengeId); }"
+            ],
+            "type" : "text/javascript"
+          }
+        }
+      ],
+      "name" : "Issue OTP",
+      "request" : {
+        "body" : {
+          "mode" : "raw",
+          "options" : {
+            "raw" : {
+              "language" : "json"
+            }
+          },
+          "raw" : "{\n  \"channel\" : \"EMAIL\",\n  \"recipient\" : \"ada@example.com\"\n}\n"
+        },
+        "description" : "Returns a challengeId. Only the code hash is stored — read the code from the service log.",
+        "header" : [
+          {
+            "key" : "Content-Type",
+            "value" : "application/json"
+          },
+          {
+            "key" : "X-Correlation-Id",
+            "value" : "postman-{{$guid}}"
+          },
+          {
+            "key" : "X-Organization-Id",
+            "value" : "{{organizationId}}"
+          },
+          {
+            "disabled" : true,
+            "key" : "Authorization",
+            "value" : "Bearer {{accessToken}}"
+          }
+        ],
+        "method" : "POST",
+        "url" : {
+          "host" : [
+            "{{baseUrl}}"
+          ],
+          "path" : [
+            "api",
+            "v1",
+            "notifications",
+            "otp"
+          ],
+          "raw" : "{{baseUrl}}/api/v1/notifications/otp"
+        }
+      }
+    },
+    {
+      "name" : "Verify OTP",
+      "request" : {
+        "body" : {
+          "mode" : "raw",
+          "options" : {
+            "raw" : {
+              "language" : "json"
+            }
+          },
+          "raw" : "{\n  \"challengeId\" : \"{{challengeId}}\",\n  \"code\" : \"123456\"\n}\n"
+        },
+        "description" : "Six digits. Take the real code from the notification-service log line.",
+        "header" : [
+          {
+            "key" : "Content-Type",
+            "value" : "application/json"
+          },
+          {
+            "key" : "X-Correlation-Id",
+            "value" : "postman-{{$guid}}"
+          },
+          {
+            "key" : "X-Organization-Id",
+            "value" : "{{organizationId}}"
+          },
+          {
+            "disabled" : true,
+            "key" : "Authorization",
+            "value" : "Bearer {{accessToken}}"
+          }
+        ],
+        "method" : "POST",
+        "url" : {
+          "host" : [
+            "{{baseUrl}}"
+          ],
+          "path" : [
+            "api",
+            "v1",
+            "notifications",
+            "otp",
+            "verify"
+          ],
+          "raw" : "{{baseUrl}}/api/v1/notifications/otp/verify"
+        }
+      }
+    }
+  ],
+  "variable" : [
+    {
+      "key" : "baseUrl",
+      "value" : "http://localhost:8087"
+    },
+    {
+      "key" : "organizationId",
+      "value" : "DEFAULT"
+    },
+    {
+      "key" : "accessToken",
+      "value" : ""
+    },
+    {
+      "key" : "challengeId",
+      "value" : ""
+    }
+  ]
+}

@@ -3,8 +3,12 @@ package com.bank.account.adapter.out.ledger;
 import com.bank.ledger.grpc.v1.LedgerPostingGrpc;
 import com.bank.ledger.grpc.v1.PostJournalEntryRequest;
 import com.bank.ledger.grpc.v1.PostJournalEntryResponse;
+import io.grpc.Metadata;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
+import io.grpc.ServerCall;
+import io.grpc.ServerCallHandler;
+import io.grpc.ServerInterceptor;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import java.io.IOException;
@@ -24,12 +28,15 @@ import java.util.concurrent.atomic.AtomicReference;
 public final class FakeLedgerPostingServer implements AutoCloseable {
 
     private final List<PostJournalEntryRequest> received = new CopyOnWriteArrayList<>();
+    private final List<String> authorizationHeaders = new CopyOnWriteArrayList<>();
     private final AtomicReference<Status> failWith = new AtomicReference<>();
     private final Server server;
 
     public FakeLedgerPostingServer() {
         try {
-            this.server = ServerBuilder.forPort(0).addService(new Service()).build().start();
+            this.server = ServerBuilder.forPort(0)
+                    .addService(io.grpc.ServerInterceptors.intercept(new Service(), new CaptureAuth()))
+                    .build().start();
         } catch (IOException e) {
             throw new IllegalStateException("Could not start the fake ledger gRPC server", e);
         }
@@ -50,8 +57,14 @@ public final class FakeLedgerPostingServer implements AutoCloseable {
         return received.get(received.size() - 1);
     }
 
+    /** Authorization metadata seen on each call, so tests can assert the client really sent one. */
+    public List<String> authorizationHeaders() {
+        return authorizationHeaders;
+    }
+
     public void reset() {
         received.clear();
+        authorizationHeaders.clear();
         failWith.set(null);
     }
 
@@ -66,6 +79,20 @@ public final class FakeLedgerPostingServer implements AutoCloseable {
             server.shutdownNow().awaitTermination(5, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
+        }
+    }
+
+    /** Records the authorization metadata of every inbound call. */
+    private final class CaptureAuth implements ServerInterceptor {
+        private static final Metadata.Key<String> AUTHORIZATION =
+                Metadata.Key.of("authorization", Metadata.ASCII_STRING_MARSHALLER);
+
+        @Override
+        public <ReqT, RespT> ServerCall.Listener<ReqT> interceptCall(
+                ServerCall<ReqT, RespT> call, Metadata headers, ServerCallHandler<ReqT, RespT> next) {
+            String header = headers.get(AUTHORIZATION);
+            authorizationHeaders.add(header == null ? "" : header);
+            return next.startCall(call, headers);
         }
     }
 

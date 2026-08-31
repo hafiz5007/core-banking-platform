@@ -66,3 +66,40 @@ configuration scales to a multi-node KRaft cluster in production without introdu
 - ADR-014 — Notification service async via Kafka
 - [KIP-500: Replace ZooKeeper with a Self-Managed Metadata Quorum](https://cwiki.apache.org/confluence/display/KAFKA/KIP-500%3A+Replace+ZooKeeper+with+a+Self-Managed+Metadata+Quorum)
 - [Kafka KRaft documentation](https://kafka.apache.org/documentation/#kraft)
+
+---
+
+## Implementation status
+
+**Implemented end-to-end** for the payment → notification flow. Off by default
+(`CBP_KAFKA_ENABLED=false`), so the platform still runs with no broker.
+
+| Piece | Where |
+| --- | --- |
+| Broker | `docker-compose.yml` `kafka` — `apache/kafka:3.7.2`, KRaft, single node, `KAFKA_AUTO_CREATE_TOPICS_ENABLE=false` |
+| Topic creation | `kafka-init` one-shot creates all four ADR-014 topics — `payment.events`, `account.events`, `card.events`, `customer.events` (3 partitions each) — and exits |
+| Producer | `payment-service` `EventBrokerPort` → `KafkaEventBrokerAdapter` (`kafka.enabled=true`) or `LoggingEventBrokerAdapter` (default) |
+| Relay | `OutboxRelay` publishes each pending row and marks it PUBLISHED **only** on broker ack |
+| Consumer | `notification-service` `PaymentEventListener` on `payment.events`, group `notification-service` |
+| Idempotency | `processed_notifications` table keyed `(topic, partition, offset)` — created by V3, renamed by V4 to the name ADR-014 specifies |
+
+Decisions taken while building it:
+
+- **A row is marked PUBLISHED only after the broker acknowledges.** The previous stub marked rows
+  published unconditionally; against a real broker that would silently drop events during an outage.
+  A failed publish leaves the row PENDING for the next pass — this is what makes the outbox
+  at-least-once rather than at-most-once.
+- **A failed publish stops the batch rather than skipping the row.** Events for one aggregate are
+  ordered, and continuing past a failure would deliver a later event before an earlier one.
+- **Records are keyed by aggregate id**, so all events for one payment land on the same partition
+  and keep their order.
+- **Producer is `acks=all` with idempotence on and one in-flight request.** The outbox guarantees the
+  event is not lost before the broker sees it; these settings stop the broker losing or reordering
+  what it accepted.
+- **An unreadable record is recorded as handled and skipped.** A poison message that can never be
+  parsed would otherwise block its partition forever. It is logged at ERROR for investigation.
+
+**Partly implemented:** all four ADR-014 topics are declared, but only `payment.events` has a producer
+and a consumer. The other three exist so the estate topic set is explicit and reviewable rather than
+appearing by accident on first publish; they carry no traffic yet. No schema registry: the
+payload is hand-built JSON, as ADR-004 anticipated.

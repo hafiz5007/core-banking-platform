@@ -1,0 +1,13 @@
+# Keep the build context small: the Dockerfiles copy the whole reactor because the parent pom
+# declares every module, so Maven needs them all present even to build one service.
+**/target/
+.git/
+.github/
+.idea/
+.vscode/
+docs/
+postman/
+*.pdf
+*.md
+!README.md
+.env

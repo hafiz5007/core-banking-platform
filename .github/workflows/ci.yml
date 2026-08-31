@@ -75,3 +75,66 @@ jobs:
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  # Every service image must build. This is not covered by `mvn verify`: the Dockerfiles copy the
+  # reactor and run their own Maven build, so a module added to the parent pom without the
+  # Dockerfiles keeping up breaks `docker compose build` while the Maven build stays green.
+  # That is exactly how every image came to be unbuildable without anyone noticing.
+  docker-images:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Validate docker-compose.yml
+        run: docker compose config --quiet
+
+      - name: Build every service image
+        run: |
+          set -e
+          for svc in account-service admin-service api-gateway card-service customer-service \
+                     interest-fee-service ledger-service notification-service payment-service \
+                     reporting-service risk-aml-service; do
+            echo "::group::$svc"
+            docker build -f "$svc/Dockerfile" -t "cbp/$svc:ci" .
+            echo "::endgroup::"
+          done
+
+  # Brings the platform up exactly as a sandbox would, with Kafka and service auth on, and proves
+  # the topics are created and the services report healthy.
+  compose-smoke:
+    runs-on: ubuntu-latest
+    needs: docker-images
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Start infrastructure
+        run: |
+          cp .env.example .env
+          {
+            echo "CBP_KAFKA_ENABLED=true"
+            echo "CBP_SERVICE_AUTH_ENABLED=true"
+            echo "CBP_SERVICE_AUTH_SECRET=$(openssl rand -base64 48)"
+          } >> .env
+          docker compose up -d postgres kafka
+          timeout 180 sh -c 'until [ "$(docker compose ps kafka --format "{{.Health}}")" = "healthy" ]; do sleep 5; done'
+
+      - name: Create topics
+        run: docker compose up kafka-init --exit-code-from kafka-init
+
+      - name: Assert all four topics exist
+        run: |
+          set -e
+          topics=$(docker compose exec -T kafka /opt/kafka/bin/kafka-topics.sh \
+                     --bootstrap-server localhost:9092 --list)
+          for t in payment.events account.events card.events customer.events; do
+            echo "$topics" | grep -qx "$t" || { echo "missing topic: $t"; exit 1; }
+          done
+          echo "all four topics present"
+
+      - name: Tear down
+        if: always()
+        run: docker compose down -v

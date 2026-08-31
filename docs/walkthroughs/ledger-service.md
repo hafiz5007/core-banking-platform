@@ -2,7 +2,6 @@
 # Walkthrough: ledger-service
 
 ## Purpose (2 sentences)
-What business capability does it own?
 Ledger-service owns the authoritative double-entry general ledger for the platform. It manages the chart of accounts, accepts balanced journal entries, supports reversals, and proves the books balance through a trial-balance query.
 
 ## Public API surface
@@ -19,7 +18,7 @@ Ledger-service owns the authoritative double-entry general ledger for the platfo
 The service owns four core tables: `ledger_account`, `journal_entry`, `journal_line`, and `change_log`. `ledger_account` stores the chart of accounts with debit-positive running balances, account type, currency, and tenant scope; `journal_entry` stores immutable balanced postings with idempotency keys and optional reversal linkage; `journal_line` stores the individual debit or credit legs tied to a journal entry; and `change_log` stores append-only entity changes with organization and correlation id. These tables are not shared because the ledger is the system of record for accounting state, and its invariants must remain atomic inside one bounded context.
 
 ## Key design decisions (3-5)
-For each:
+
 - Decision: Enforce double-entry balance at construction time.
 - Why: `JournalEntry.validateBalanced` rejects entries with fewer than two lines, mixed currencies, negative legs, or unequal debits and credits before persistence.
 - Alternative considered: Allowing the database or downstream reconciliation to catch bad entries later.
@@ -59,4 +58,3 @@ For each:
 - Add more property-based tests around balance and reversal invariants.
 - Introduce explicit posting templates if accounting operations become repetitive.
 - Add reporting projections if trial-balance or account-balance queries become hot.
-```

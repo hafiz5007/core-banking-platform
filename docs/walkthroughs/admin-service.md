@@ -2,7 +2,6 @@
 # Walkthrough: admin-service
 
 ## Purpose (2 sentences)
-What business capability does it own?
 Admin-service owns back-office governance for the platform. It manages RBAC roles and permissions, maker-checker approvals for sensitive actions, and an immutable audit trail of privileged activity.
 
 ## Public API surface
@@ -20,7 +19,7 @@ Admin-service owns back-office governance for the platform. It manages RBAC role
 The service owns three tables: `role`, `approval_request`, and `audit_event`. `role` stores a role name plus a comma-separated permission set and is scoped by `organization_id`; `approval_request` stores sensitive actions awaiting four-eyes review with maker/checker state, decision timestamps, and optimistic locking; and `audit_event` stores an append-only, organization-scoped record of privileged actions with actor, target, details, and correlation id. These tables are not shared because authorization, approvals, and audit history are privileged back-office concerns that must evolve independently and remain transactionally consistent inside this bounded context.
 
 ## Key design decisions (3-5)
-For each:
+
 - Decision: Model permissions as an RBAC role catalogue.
 - Why: The service can grant least-privilege access by assigning narrow roles instead of scattering permission checks across callers.
 - Alternative considered: Hard-coding privileges or using only ad hoc checks at the gateway.
@@ -60,4 +59,3 @@ For each:
 - Add tests for cross-organization isolation on roles, approvals, and audit queries.
 - Replace comma-separated permissions with a join table if permission metadata needs to grow.
 - Add stronger actor identity validation if requests stop being system-assisted and become fully user-driven.
-```

@@ -2,7 +2,6 @@
 # Walkthrough: reporting-service
 
 ## Purpose (2 sentences)
-What business capability does it own?
 Reporting-service owns operational and regulatory reporting from a dedicated metrics projection. It collects business-date metrics from the rest of the platform, stores them outside the transactional path, and produces daily totals by metric key.
 
 ## Public API surface
@@ -15,7 +14,7 @@ Reporting-service owns operational and regulatory reporting from a dedicated met
 The service owns a single core table, `report_metric`, which stores one business-date metric figure at a time. Each row captures the organization, business date, metric key, metric value, source, and timestamp; the daily report simply reads all rows for a date and aggregates them by key. It is not shared because reporting is intentionally a read-model/projection concern and should stay decoupled from the transactional schemas that produce the numbers.
 
 ## Key design decisions (3-5)
-For each:
+
 - Decision: Store reporting data as a projection, not as transactional source data.
 - Why: Reports can be queried and summed without touching live business tables.
 - Alternative considered: Building reports directly from each service’s operational database.
@@ -55,4 +54,3 @@ For each:
 - Add more report types if the business needs weekly or monthly rollups.
 - Add pre-aggregation or partitioning if the metrics table grows significantly.
 - Add export formats for downstream regulatory or finance consumers.
-```

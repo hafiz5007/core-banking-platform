@@ -3,6 +3,8 @@ package com.bank.ledger.config;
 import io.grpc.BindableService;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
+import io.grpc.ServerInterceptor;
+import io.grpc.ServerInterceptors;
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -27,15 +29,18 @@ public class GrpcServerConfig implements SmartLifecycle {
     private static final Logger log = LoggerFactory.getLogger(GrpcServerConfig.class);
 
     private final List<BindableService> services;
+    private final List<ServerInterceptor> interceptors;
     private final int configuredPort;
     private final long shutdownTimeoutSeconds;
 
     private Server server;
 
     public GrpcServerConfig(List<BindableService> services,
+                            List<ServerInterceptor> interceptors,
                             @Value("${grpc.server.port:9090}") int configuredPort,
                             @Value("${grpc.server.shutdown-timeout-seconds:10}") long shutdownTimeoutSeconds) {
         this.services = services;
+        this.interceptors = interceptors;
         this.configuredPort = configuredPort;
         this.shutdownTimeoutSeconds = shutdownTimeoutSeconds;
     }
@@ -46,13 +51,15 @@ public class GrpcServerConfig implements SmartLifecycle {
             return;
         }
         ServerBuilder<?> builder = ServerBuilder.forPort(configuredPort);
-        services.forEach(builder::addService);
+        // Interceptors run before the handler, so an unauthenticated call never reaches business code.
+        services.forEach(service -> builder.addService(ServerInterceptors.intercept(service, interceptors)));
         try {
             server = builder.build().start();
         } catch (IOException e) {
             throw new IllegalStateException("Unable to start the gRPC server on port " + configuredPort, e);
         }
-        log.info("gRPC server listening on port {} with {} service(s)", server.getPort(), services.size());
+        log.info("gRPC server listening on port {} with {} service(s) and {} interceptor(s)",
+                server.getPort(), services.size(), interceptors.size());
     }
 
     @Override

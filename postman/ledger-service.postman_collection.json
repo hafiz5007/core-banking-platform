@@ -1,0 +1,373 @@
+{
+  "info" : {
+    "description" : "Chart of accounts, balanced journal entries, reversals, trial balance. Also exposes a gRPC posting endpoint on 9090 which Postman cannot call — see the debug guide. Generated from the service's controllers. Set {{baseUrl}} to the gateway (http://localhost:8080) to go through the edge instead of hitting the service directly. Authorization is disabled by default: enable it and set {{accessToken}} once gateway.security.enabled=true.",
+    "name" : "Core Banking — ledger-service",
+    "schema" : "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item" : [
+    {
+      "event" : [
+        {
+          "listen" : "test",
+          "script" : {
+            "exec" : [
+              "pm.test(\"2xx\", () => pm.expect(pm.response.code).to.be.below(300));"
+            ],
+            "type" : "text/javascript"
+          }
+        }
+      ],
+      "name" : "Create ledger account (liability)",
+      "request" : {
+        "body" : {
+          "mode" : "raw",
+          "options" : {
+            "raw" : {
+              "language" : "json"
+            }
+          },
+          "raw" : "{\n  \"accountType\" : \"LIABILITY\",\n  \"code\" : \"{{debitAccount}}\",\n  \"currencyCode\" : \"USD\",\n  \"name\" : \"Customer Deposits\"\n}\n"
+        },
+        "description" : "accountType: ASSET | EXPENSE | LIABILITY | EQUITY | INCOME.",
+        "header" : [
+          {
+            "key" : "Content-Type",
+            "value" : "application/json"
+          },
+          {
+            "key" : "X-Correlation-Id",
+            "value" : "postman-{{$guid}}"
+          },
+          {
+            "key" : "X-Organization-Id",
+            "value" : "{{organizationId}}"
+          },
+          {
+            "disabled" : true,
+            "key" : "Authorization",
+            "value" : "Bearer {{accessToken}}"
+          }
+        ],
+        "method" : "POST",
+        "url" : {
+          "host" : [
+            "{{baseUrl}}"
+          ],
+          "path" : [
+            "api",
+            "v1",
+            "ledger",
+            "accounts"
+          ],
+          "raw" : "{{baseUrl}}/api/v1/ledger/accounts"
+        }
+      }
+    },
+    {
+      "event" : [
+        {
+          "listen" : "test",
+          "script" : {
+            "exec" : [
+              "pm.test(\"2xx\", () => pm.expect(pm.response.code).to.be.below(300));"
+            ],
+            "type" : "text/javascript"
+          }
+        }
+      ],
+      "name" : "Create ledger account (settlement)",
+      "request" : {
+        "body" : {
+          "mode" : "raw",
+          "options" : {
+            "raw" : {
+              "language" : "json"
+            }
+          },
+          "raw" : "{\n  \"accountType\" : \"ASSET\",\n  \"code\" : \"{{creditAccount}}\",\n  \"currencyCode\" : \"USD\",\n  \"name\" : \"Settlement\"\n}\n"
+        },
+        "description" : "",
+        "header" : [
+          {
+            "key" : "Content-Type",
+            "value" : "application/json"
+          },
+          {
+            "key" : "X-Correlation-Id",
+            "value" : "postman-{{$guid}}"
+          },
+          {
+            "key" : "X-Organization-Id",
+            "value" : "{{organizationId}}"
+          },
+          {
+            "disabled" : true,
+            "key" : "Authorization",
+            "value" : "Bearer {{accessToken}}"
+          }
+        ],
+        "method" : "POST",
+        "url" : {
+          "host" : [
+            "{{baseUrl}}"
+          ],
+          "path" : [
+            "api",
+            "v1",
+            "ledger",
+            "accounts"
+          ],
+          "raw" : "{{baseUrl}}/api/v1/ledger/accounts"
+        }
+      }
+    },
+    {
+      "name" : "Get ledger account",
+      "request" : {
+        "description" : "",
+        "header" : [
+          {
+            "key" : "X-Correlation-Id",
+            "value" : "postman-{{$guid}}"
+          },
+          {
+            "key" : "X-Organization-Id",
+            "value" : "{{organizationId}}"
+          },
+          {
+            "disabled" : true,
+            "key" : "Authorization",
+            "value" : "Bearer {{accessToken}}"
+          }
+        ],
+        "method" : "GET",
+        "url" : {
+          "host" : [
+            "{{baseUrl}}"
+          ],
+          "path" : [
+            "api",
+            "v1",
+            "ledger",
+            "accounts",
+            "{{debitAccount}}"
+          ],
+          "raw" : "{{baseUrl}}/api/v1/ledger/accounts/{{debitAccount}}"
+        }
+      }
+    },
+    {
+      "event" : [
+        {
+          "listen" : "test",
+          "script" : {
+            "exec" : [
+              "const ok = pm.response.code < 300;",
+              "pm.test(\"2xx\", () => pm.expect(ok).to.be.true);",
+              "if (ok) { pm.collectionVariables.set(\"entryId\", pm.response.json().id); }"
+            ],
+            "type" : "text/javascript"
+          }
+        }
+      ],
+      "name" : "Post journal entry",
+      "request" : {
+        "body" : {
+          "mode" : "raw",
+          "options" : {
+            "raw" : {
+              "language" : "json"
+            }
+          },
+          "raw" : "{\n  \"idempotencyKey\" : \"entry-{{$guid}}\",\n  \"lines\" : [\n    {\n      \"accountCode\" : \"{{debitAccount}}\",\n      \"amount\" : \"125.00\",\n      \"direction\" : \"DEBIT\"\n    },\n    {\n      \"accountCode\" : \"{{creditAccount}}\",\n      \"amount\" : \"125.00\",\n      \"direction\" : \"CREDIT\"\n    }\n  ],\n  \"narrative\" : \"Manual posting\",\n  \"valueDate\" : \"2026-01-15\"\n}\n"
+        },
+        "description" : "Must balance: debits equal credits, at least two lines, one currency. Replaying the same idempotencyKey returns the original entry.",
+        "header" : [
+          {
+            "key" : "Content-Type",
+            "value" : "application/json"
+          },
+          {
+            "key" : "X-Correlation-Id",
+            "value" : "postman-{{$guid}}"
+          },
+          {
+            "key" : "X-Organization-Id",
+            "value" : "{{organizationId}}"
+          },
+          {
+            "disabled" : true,
+            "key" : "Authorization",
+            "value" : "Bearer {{accessToken}}"
+          }
+        ],
+        "method" : "POST",
+        "url" : {
+          "host" : [
+            "{{baseUrl}}"
+          ],
+          "path" : [
+            "api",
+            "v1",
+            "ledger",
+            "entries"
+          ],
+          "raw" : "{{baseUrl}}/api/v1/ledger/entries"
+        }
+      }
+    },
+    {
+      "event" : [
+        {
+          "listen" : "test",
+          "script" : {
+            "exec" : [
+              "pm.test(\"2xx\", () => pm.expect(pm.response.code).to.be.below(300));"
+            ],
+            "type" : "text/javascript"
+          }
+        }
+      ],
+      "name" : "Get journal entry",
+      "request" : {
+        "description" : "",
+        "header" : [
+          {
+            "key" : "X-Correlation-Id",
+            "value" : "postman-{{$guid}}"
+          },
+          {
+            "key" : "X-Organization-Id",
+            "value" : "{{organizationId}}"
+          },
+          {
+            "disabled" : true,
+            "key" : "Authorization",
+            "value" : "Bearer {{accessToken}}"
+          }
+        ],
+        "method" : "GET",
+        "url" : {
+          "host" : [
+            "{{baseUrl}}"
+          ],
+          "path" : [
+            "api",
+            "v1",
+            "ledger",
+            "entries",
+            "{{entryId}}"
+          ],
+          "raw" : "{{baseUrl}}/api/v1/ledger/entries/{{entryId}}"
+        }
+      }
+    },
+    {
+      "name" : "Reverse entry",
+      "request" : {
+        "description" : "Writes a compensating entry; the original is never mutated.",
+        "header" : [
+          {
+            "key" : "X-Correlation-Id",
+            "value" : "postman-{{$guid}}"
+          },
+          {
+            "key" : "X-Organization-Id",
+            "value" : "{{organizationId}}"
+          },
+          {
+            "disabled" : true,
+            "key" : "Authorization",
+            "value" : "Bearer {{accessToken}}"
+          }
+        ],
+        "method" : "POST",
+        "url" : {
+          "host" : [
+            "{{baseUrl}}"
+          ],
+          "path" : [
+            "api",
+            "v1",
+            "ledger",
+            "entries",
+            "{{entryId}}",
+            "reversal"
+          ],
+          "raw" : "{{baseUrl}}/api/v1/ledger/entries/{{entryId}}/reversal"
+        }
+      }
+    },
+    {
+      "event" : [
+        {
+          "listen" : "test",
+          "script" : {
+            "exec" : [
+              "pm.test(\"books balance\", () => pm.expect(pm.response.json().balanced).to.be.true);"
+            ],
+            "type" : "text/javascript"
+          }
+        }
+      ],
+      "name" : "Trial balance",
+      "request" : {
+        "description" : "Proves debits equal credits across the books.",
+        "header" : [
+          {
+            "key" : "X-Correlation-Id",
+            "value" : "postman-{{$guid}}"
+          },
+          {
+            "key" : "X-Organization-Id",
+            "value" : "{{organizationId}}"
+          },
+          {
+            "disabled" : true,
+            "key" : "Authorization",
+            "value" : "Bearer {{accessToken}}"
+          }
+        ],
+        "method" : "GET",
+        "url" : {
+          "host" : [
+            "{{baseUrl}}"
+          ],
+          "path" : [
+            "api",
+            "v1",
+            "ledger",
+            "trial-balance"
+          ],
+          "raw" : "{{baseUrl}}/api/v1/ledger/trial-balance"
+        }
+      }
+    }
+  ],
+  "variable" : [
+    {
+      "key" : "baseUrl",
+      "value" : "http://localhost:8083"
+    },
+    {
+      "key" : "organizationId",
+      "value" : "DEFAULT"
+    },
+    {
+      "key" : "accessToken",
+      "value" : ""
+    },
+    {
+      "key" : "debitAccount",
+      "value" : "DEP-001"
+    },
+    {
+      "key" : "creditAccount",
+      "value" : "SETTLEMENT"
+    },
+    {
+      "key" : "entryId",
+      "value" : ""
+    }
+  ]
+}

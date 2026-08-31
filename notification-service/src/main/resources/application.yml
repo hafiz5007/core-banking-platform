@@ -1,10 +1,21 @@
 spring:
+  kafka:
+    bootstrap-servers: ${CBP_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      # Read the backlog from the start on a fresh group; the processed_notifications table makes
+      # re-reading safe.
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+    listener:
+      ack-mode: record
   application:
     name: notification-service
   datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:5432/banking}
-    username: ${DB_USER:banking}
-    password: ${DB_PASSWORD:banking}
+    url: ${CBP_DB_URL:jdbc:postgresql://localhost:5432/banking}
+    username: ${CBP_DB_USER:banking}
+    password: ${CBP_DB_PASSWORD:banking}
   jpa:
     hibernate:
       ddl-auto: validate
@@ -22,7 +33,7 @@ spring:
     create-schemas: true
 
 server:
-  port: ${SERVER_PORT:8087}
+  port: ${CBP_SERVER_PORT:8087}
 
 management:
   endpoints:
@@ -44,3 +55,11 @@ springdoc:
 logging:
   pattern:
     level: "%5p [${spring.application.name},correlationId=%X{correlationId:-n/a}]"
+
+# Kafka event backbone (ADR-005, ADR-014). Off by default; with kafka.enabled=false no listener is
+# registered and the service is REST-only.
+kafka:
+  enabled: ${CBP_KAFKA_ENABLED:false}
+  consumer-group: ${CBP_KAFKA_CONSUMER_GROUP:notification-service}
+  topics:
+    payment-events: ${CBP_KAFKA_TOPIC_PAYMENT_EVENTS:payment.events}

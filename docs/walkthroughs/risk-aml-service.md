@@ -2,7 +2,6 @@
 # Walkthrough: risk-aml-service
 
 ## Purpose (2 sentences)
-What business capability does it own?
 Risk-aml-service owns real-time transaction monitoring, alert generation, AML investigation cases, and optional SAR filing on case closure. It evaluates transactions against deterministic rules, opens cases when a rule fires, and keeps an append-only audit trail of what was opened and why.
 
 ## Public API surface
@@ -16,7 +15,7 @@ Risk-aml-service owns real-time transaction monitoring, alert generation, AML in
 The service owns four main tables: `aml_case`, `aml_alert`, `change_log`, and the repository-backed monitoring engine does not persist rule state. `aml_case` stores the investigation lifecycle, tenant, account reference, fired rule, closure resolution, and SAR flag; `aml_alert` stores each triggered transaction alert and links it to the case that was opened; and `change_log` stores append-only audit rows scoped by organization and correlation id. These tables are not shared because AML monitoring, case handling, and audit history must remain transactional and isolated inside this bounded context.
 
 ## Key design decisions (3-5)
-For each:
+
 - Decision: Keep monitoring rules deterministic and explicit.
 - Why: The `MonitoringEngine` makes AML decisions from a small set of testable rules like high-risk country, large amount, and possible structuring.
 - Alternative considered: Using a black-box model with no obvious rule trace.
@@ -56,4 +55,3 @@ For each:
 - Add richer rule coverage and regression tests for borderline structuring scenarios.
 - Add analyst assignment and case notes if the investigation workflow grows.
 - Replace the simple rule engine with configurable rule sets or model-assisted scoring if the business needs it later.
-```

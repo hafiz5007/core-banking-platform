@@ -11,7 +11,7 @@ hardening / completeness · **P2** = enhancement.
 - [x] **P0 — Real build done and green.** The platform now compiles and passes its full test suite
     | 9 | `GET /api/v1/ledger/entries/{id}` returned **500 for every entry**: `open-in-view` is off (correct) but the controller mapped the lazy `lines` collection after the transaction closed. No test covered the endpoint. Found while building the gRPC bridge. | added a fetch-join finder (`findByIdWithLines`) and used it in `LedgerService.getEntry` — also removes an N+1 |
 on a real toolchain (**JDK 21.0.11 / Maven 3.9.9 / Docker 29.5.3**): `mvn verify` → **BUILD
-  SUCCESS**, 14 modules, **170 tests, 0 failures**, including **19 integration-test classes**
+  SUCCESS**, 14 modules, **203 tests, 0 failures**, including **24 integration-test classes**
   running against real PostgreSQL 16 containers via Testcontainers.
   - `api-gateway`, previously flagged as the highest-risk module, builds and its context test
     passes; `spring-cloud-starter-gateway-mvc` and the route config are correct for Spring Cloud
@@ -29,6 +29,10 @@ on a real toolchain (**JDK 21.0.11 / Maven 3.9.9 / Docker 29.5.3**): `mvn verify
   | 6 | Once the ITs ran: the 2nd+ IT class per module failed with `Connection refused`. `@Testcontainers`/`@Container` stops the container after each test **class**, but Spring caches the application context **across** classes, so later classes pointed a `DataSource` at a dead container | singleton-container pattern in all 10 `AbstractIntegrationTest` classes: started once in a `static` block, never stopped (Ryuk reaps it) |
   | 7 | `ChannelPaymentIT` built a biller code of `"UTIL-" + UUID` = 41 chars against `biller_code VARCHAR(40)` | shortened the generated code (the constraint is correct; the test data was wrong) |
   | 8 | Request DTOs had `@NotBlank` but no `@Size`, so over-long input reached the database and surfaced as a **500** `DataIntegrityViolationException` instead of a **400** | `@Size` bounds mirroring each `@Column(length=…)` added across **17 files in 9 services** |
+
+- [x] **P0 — `docker compose build` was broken for every service; fixed.** Each Dockerfile copied only `pom.xml`, `common-lib` and its own module, but the parent pom declares all 14 modules, so Maven refused with *"Child module ... does not exist"*. **No service image had ever built.** Found while writing the sandbox release guide. Every Dockerfile now copies the reactor with a `.dockerignore` keeping the context small; all 11 images verified building.
+
+- [x] **P2 — Postman collections and operational guides.** One collection per service in `postman/` covering all 74 REST endpoints, with chained id capture and correlation-id headers, plus local/gateway/sandbox environments. `docs/DEPLOYMENT_SANDBOX.md` covers releasing to a test server in sandbox mode and what stops it being production; `docs/DEBUG_TESTING.md` covers running the suites, tracing by correlation id, and the traps this codebase sets.
 
 - [ ] **P1 — Flyway checksums.** Fix #4 edited **already-committed** migration files, which changes
   their checksums. Safe only where databases are rebuilt from scratch. If any environment has
@@ -97,8 +101,48 @@ Each is already a port with a working stub; swap in the real client and add cont
     has five values but nothing moves between them, so the "only ACTIVE may be debited" guard is
     provable only by setting the field reflectively in a test.
 
-- [ ] **P1 — Outbox relay → Kafka** (`payment-service` `OutboxRelay`): publish to the real broker
-  (payload is already broker-ready) and consume events in downstream services.
+- [◑] **P1 — JWT service-to-service auth (ADR-008) — every internal call is now covered.** All five
+  service-to-service call paths carry a short-lived token, and both receivers refuse calls without
+  one, on REST **and** gRPC:
+
+  | Caller | Target | Transport | Scope |
+  | --- | --- | --- | --- |
+  | account-service | ledger-service | gRPC | `ledger:post` |
+  | account-service | ledger-service | REST | `ledger:write` |
+  | card-service | ledger-service | REST | `ledger:post` |
+  | interest-fee-service | ledger-service | REST | `ledger:post` |
+  | payment-service | ledger-service | REST | `ledger:post` |
+  | payment-service | risk-aml-service | REST | `risk:evaluate` |
+
+  Wiring is a common-lib **auto-configuration**, so a service opts in with configuration only. Two
+  independent switches: `service-auth.enabled` (mint for outbound) and `service-auth.require-inbound`
+  (refuse unauthenticated inbound) — separate so a rollout can enable callers before receivers.
+  All secrets now live in a single gitignored `.env`; `.env.example` is the committed template.
+  26 tests, including refusal of a missing token, a wrong-secret signature, a token addressed to
+  another service, one lacking the scope, an expired one, and an `alg: none` downgrade.
+  - **Still open — the deviation:** the ADR specifies **RS256 + JWKS**; this uses **HS256 with a
+    shared secret**, because CI runs Gitleaks and a working default RSA keypair cannot be committed.
+    A shared secret means a receiver can also mint, so a compromised receiver could impersonate a
+    caller. **Not the production posture.** `ServiceTokenIssuer`/`ServiceTokenVerifier` are the only
+    places that know the algorithm, so this is a contained swap.
+  - **Still open:** gateway-side token issuance (each service mints its own today); per-endpoint REST
+    scopes (the filter authenticates but does not check scope per endpoint — the gRPC path does);
+    and the four services that receive only gateway traffic (customer, admin, notification,
+    reporting) are not guarded, because that needs gateway issuance first.
+
+- [x] **P1 — Outbox relay → Kafka — done end-to-end.** `payment-service` publishes outbox rows to a
+  real broker and `notification-service` consumes them into customer alerts (ADR-004/005/014):
+  broker in compose (`apache/kafka:3.7.2`, KRaft, no ZooKeeper), `kafka-init` creates all four ADR-014 topics because auto-create is deliberately off, `EventBrokerPort` →
+  `KafkaEventBrokerAdapter`, and a `PaymentEventListener` with `(topic, partition, offset)`
+  idempotency in a `processed_notifications` table (V3 creates it, V4 renames it to the ADR-014 name). Off by default (`CBP_KAFKA_ENABLED=false`) so the
+  platform still runs with no broker. 7 tests against real Kafka containers on both sides.
+  - The relay now marks a row PUBLISHED **only** after the broker acknowledges it. The previous stub
+    marked rows published unconditionally, which against a real broker would have silently dropped
+    events during an outage.
+  - **Remaining:** all four ADR-014 topics are declared, but only `payment.events` carries traffic —
+    `account.events`, `card.events` and `customer.events` have no producer or consumer. No schema
+    registry; the payload is hand-built JSON, as ADR-004 anticipated.
+
 
 ## 2. Functional completeness
 

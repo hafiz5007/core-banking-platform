@@ -1,0 +1,814 @@
+{
+  "info" : {
+    "description" : "Payments across all rails, standing orders, direct debits, P2P and bill pay. Publishes payment.events to Kafka via the outbox. Generated from the service's controllers. Set {{baseUrl}} to the gateway (http://localhost:8080) to go through the edge instead of hitting the service directly. Authorization is disabled by default: enable it and set {{accessToken}} once gateway.security.enabled=true.",
+    "name" : "Core Banking — payment-service",
+    "schema" : "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item" : [
+    {
+      "event" : [
+        {
+          "listen" : "test",
+          "script" : {
+            "exec" : [
+              "const ok = pm.response.code < 300;",
+              "pm.test(\"2xx\", () => pm.expect(ok).to.be.true);",
+              "if (ok) { pm.collectionVariables.set(\"paymentId\", pm.response.json().id); }"
+            ],
+            "type" : "text/javascript"
+          }
+        }
+      ],
+      "name" : "Initiate payment (intrabank)",
+      "request" : {
+        "body" : {
+          "mode" : "raw",
+          "options" : {
+            "raw" : {
+              "language" : "json"
+            }
+          },
+          "raw" : "{\n  \"amount\" : \"75.00\",\n  \"creditorAccount\" : \"SETTLEMENT\",\n  \"currencyCode\" : \"USD\",\n  \"debtorAccount\" : \"DEP-001\",\n  \"idempotencyKey\" : \"pay-{{$guid}}\",\n  \"narrative\" : \"Transfer\",\n  \"type\" : \"INTRABANK\"\n}\n"
+        },
+        "description" : "type: INTRABANK | DOMESTIC_INSTANT | RTGS | ACH | CROSS_BORDER. Both account codes must exist in ledger-service. Screening runs first and a risk-aml outage fails the payment by design.",
+        "header" : [
+          {
+            "key" : "Content-Type",
+            "value" : "application/json"
+          },
+          {
+            "key" : "X-Correlation-Id",
+            "value" : "postman-{{$guid}}"
+          },
+          {
+            "key" : "X-Organization-Id",
+            "value" : "{{organizationId}}"
+          },
+          {
+            "disabled" : true,
+            "key" : "Authorization",
+            "value" : "Bearer {{accessToken}}"
+          }
+        ],
+        "method" : "POST",
+        "url" : {
+          "host" : [
+            "{{baseUrl}}"
+          ],
+          "path" : [
+            "api",
+            "v1",
+            "payments"
+          ],
+          "raw" : "{{baseUrl}}/api/v1/payments"
+        }
+      }
+    },
+    {
+      "name" : "Initiate payment (cross-border + FX)",
+      "request" : {
+        "body" : {
+          "mode" : "raw",
+          "options" : {
+            "raw" : {
+              "language" : "json"
+            }
+          },
+          "raw" : "{\n  \"amount\" : \"250.00\",\n  \"creditorAccount\" : \"NOSTRO\",\n  \"currencyCode\" : \"USD\",\n  \"debtorAccount\" : \"DEP-001\",\n  \"idempotencyKey\" : \"pay-{{$guid}}\",\n  \"narrative\" : \"Overseas transfer\",\n  \"targetCurrencyCode\" : \"EUR\",\n  \"type\" : \"CROSS_BORDER\"\n}\n"
+        },
+        "description" : "targetCurrencyCode drives the FX leg. Uses the stub FX and SWIFT adapters.",
+        "header" : [
+          {
+            "key" : "Content-Type",
+            "value" : "application/json"
+          },
+          {
+            "key" : "X-Correlation-Id",
+            "value" : "postman-{{$guid}}"
+          },
+          {
+            "key" : "X-Organization-Id",
+            "value" : "{{organizationId}}"
+          },
+          {
+            "disabled" : true,
+            "key" : "Authorization",
+            "value" : "Bearer {{accessToken}}"
+          }
+        ],
+        "method" : "POST",
+        "url" : {
+          "host" : [
+            "{{baseUrl}}"
+          ],
+          "path" : [
+            "api",
+            "v1",
+            "payments"
+          ],
+          "raw" : "{{baseUrl}}/api/v1/payments"
+        }
+      }
+    },
+    {
+      "event" : [
+        {
+          "listen" : "test",
+          "script" : {
+            "exec" : [
+              "pm.test(\"2xx\", () => pm.expect(pm.response.code).to.be.below(300));"
+            ],
+            "type" : "text/javascript"
+          }
+        }
+      ],
+      "name" : "Get payment",
+      "request" : {
+        "description" : "",
+        "header" : [
+          {
+            "key" : "X-Correlation-Id",
+            "value" : "postman-{{$guid}}"
+          },
+          {
+            "key" : "X-Organization-Id",
+            "value" : "{{organizationId}}"
+          },
+          {
+            "disabled" : true,
+            "key" : "Authorization",
+            "value" : "Bearer {{accessToken}}"
+          }
+        ],
+        "method" : "GET",
+        "url" : {
+          "host" : [
+            "{{baseUrl}}"
+          ],
+          "path" : [
+            "api",
+            "v1",
+            "payments",
+            "{{paymentId}}"
+          ],
+          "raw" : "{{baseUrl}}/api/v1/payments/{{paymentId}}"
+        }
+      }
+    },
+    {
+      "name" : "Payment change log",
+      "request" : {
+        "description" : "",
+        "header" : [
+          {
+            "key" : "X-Correlation-Id",
+            "value" : "postman-{{$guid}}"
+          },
+          {
+            "key" : "X-Organization-Id",
+            "value" : "{{organizationId}}"
+          },
+          {
+            "disabled" : true,
+            "key" : "Authorization",
+            "value" : "Bearer {{accessToken}}"
+          }
+        ],
+        "method" : "GET",
+        "url" : {
+          "host" : [
+            "{{baseUrl}}"
+          ],
+          "path" : [
+            "api",
+            "v1",
+            "payments",
+            "{{paymentId}}",
+            "change-log"
+          ],
+          "raw" : "{{baseUrl}}/api/v1/payments/{{paymentId}}/change-log"
+        }
+      }
+    },
+    {
+      "name" : "Return payment",
+      "request" : {
+        "description" : "Reverses a settled payment and publishes PaymentReturned.",
+        "header" : [
+          {
+            "key" : "X-Correlation-Id",
+            "value" : "postman-{{$guid}}"
+          },
+          {
+            "key" : "X-Organization-Id",
+            "value" : "{{organizationId}}"
+          },
+          {
+            "disabled" : true,
+            "key" : "Authorization",
+            "value" : "Bearer {{accessToken}}"
+          }
+        ],
+        "method" : "POST",
+        "url" : {
+          "host" : [
+            "{{baseUrl}}"
+          ],
+          "path" : [
+            "api",
+            "v1",
+            "payments",
+            "{{paymentId}}",
+            "return"
+          ],
+          "raw" : "{{baseUrl}}/api/v1/payments/{{paymentId}}/return"
+        }
+      }
+    },
+    {
+      "event" : [
+        {
+          "listen" : "test",
+          "script" : {
+            "exec" : [
+              "const ok = pm.response.code < 300;",
+              "if (ok) { pm.collectionVariables.set(\"alias\", pm.response.json().alias); }"
+            ],
+            "type" : "text/javascript"
+          }
+        }
+      ],
+      "name" : "Register P2P alias",
+      "request" : {
+        "body" : {
+          "mode" : "raw",
+          "options" : {
+            "raw" : {
+              "language" : "json"
+            }
+          },
+          "raw" : "{\n  \"accountCode\" : \"SETTLEMENT\",\n  \"alias\" : \"alice-{{$guid}}@example.com\",\n  \"aliasType\" : \"EMAIL\"\n}\n"
+        },
+        "description" : "aliasType: PHONE | EMAIL.",
+        "header" : [
+          {
+            "key" : "Content-Type",
+            "value" : "application/json"
+          },
+          {
+            "key" : "X-Correlation-Id",
+            "value" : "postman-{{$guid}}"
+          },
+          {
+            "key" : "X-Organization-Id",
+            "value" : "{{organizationId}}"
+          },
+          {
+            "disabled" : true,
+            "key" : "Authorization",
+            "value" : "Bearer {{accessToken}}"
+          }
+        ],
+        "method" : "POST",
+        "url" : {
+          "host" : [
+            "{{baseUrl}}"
+          ],
+          "path" : [
+            "api",
+            "v1",
+            "aliases"
+          ],
+          "raw" : "{{baseUrl}}/api/v1/aliases"
+        }
+      }
+    },
+    {
+      "name" : "Pay by alias (P2P)",
+      "request" : {
+        "body" : {
+          "mode" : "raw",
+          "options" : {
+            "raw" : {
+              "language" : "json"
+            }
+          },
+          "raw" : "{\n  \"amount\" : \"25.00\",\n  \"currencyCode\" : \"USD\",\n  \"fromAccount\" : \"DEP-001\",\n  \"idempotencyKey\" : \"p2p-{{$guid}}\",\n  \"toAlias\" : \"{{alias}}\"\n}\n"
+        },
+        "description" : "",
+        "header" : [
+          {
+            "key" : "Content-Type",
+            "value" : "application/json"
+          },
+          {
+            "key" : "X-Correlation-Id",
+            "value" : "postman-{{$guid}}"
+          },
+          {
+            "key" : "X-Organization-Id",
+            "value" : "{{organizationId}}"
+          },
+          {
+            "disabled" : true,
+            "key" : "Authorization",
+            "value" : "Bearer {{accessToken}}"
+          }
+        ],
+        "method" : "POST",
+        "url" : {
+          "host" : [
+            "{{baseUrl}}"
+          ],
+          "path" : [
+            "api",
+            "v1",
+            "payments",
+            "p2p"
+          ],
+          "raw" : "{{baseUrl}}/api/v1/payments/p2p"
+        }
+      }
+    },
+    {
+      "event" : [
+        {
+          "listen" : "test",
+          "script" : {
+            "exec" : [
+              "const ok = pm.response.code < 300;",
+              "if (ok) { pm.collectionVariables.set(\"billerCode\", pm.response.json().billerCode); }"
+            ],
+            "type" : "text/javascript"
+          }
+        }
+      ],
+      "name" : "Register biller",
+      "request" : {
+        "body" : {
+          "mode" : "raw",
+          "options" : {
+            "raw" : {
+              "language" : "json"
+            }
+          },
+          "raw" : "{\n  \"billerCode\" : \"UTIL-{{$randomInt}}\",\n  \"name\" : \"City Power\",\n  \"settlementAccount\" : \"SETTLEMENT\"\n}\n"
+        },
+        "description" : "billerCode max 40 chars — a full UUID will not fit.",
+        "header" : [
+          {
+            "key" : "Content-Type",
+            "value" : "application/json"
+          },
+          {
+            "key" : "X-Correlation-Id",
+            "value" : "postman-{{$guid}}"
+          },
+          {
+            "key" : "X-Organization-Id",
+            "value" : "{{organizationId}}"
+          },
+          {
+            "disabled" : true,
+            "key" : "Authorization",
+            "value" : "Bearer {{accessToken}}"
+          }
+        ],
+        "method" : "POST",
+        "url" : {
+          "host" : [
+            "{{baseUrl}}"
+          ],
+          "path" : [
+            "api",
+            "v1",
+            "billers"
+          ],
+          "raw" : "{{baseUrl}}/api/v1/billers"
+        }
+      }
+    },
+    {
+      "name" : "Pay a bill",
+      "request" : {
+        "body" : {
+          "mode" : "raw",
+          "options" : {
+            "raw" : {
+              "language" : "json"
+            }
+          },
+          "raw" : "{\n  \"amount\" : \"60.00\",\n  \"billerCode\" : \"{{billerCode}}\",\n  \"currencyCode\" : \"USD\",\n  \"customerReference\" : \"ACC-REF-42\",\n  \"fromAccount\" : \"DEP-001\",\n  \"idempotencyKey\" : \"bill-{{$guid}}\"\n}\n"
+        },
+        "description" : "",
+        "header" : [
+          {
+            "key" : "Content-Type",
+            "value" : "application/json"
+          },
+          {
+            "key" : "X-Correlation-Id",
+            "value" : "postman-{{$guid}}"
+          },
+          {
+            "key" : "X-Organization-Id",
+            "value" : "{{organizationId}}"
+          },
+          {
+            "disabled" : true,
+            "key" : "Authorization",
+            "value" : "Bearer {{accessToken}}"
+          }
+        ],
+        "method" : "POST",
+        "url" : {
+          "host" : [
+            "{{baseUrl}}"
+          ],
+          "path" : [
+            "api",
+            "v1",
+            "payments",
+            "bill"
+          ],
+          "raw" : "{{baseUrl}}/api/v1/payments/bill"
+        }
+      }
+    },
+    {
+      "event" : [
+        {
+          "listen" : "test",
+          "script" : {
+            "exec" : [
+              "const ok = pm.response.code < 300;",
+              "if (ok) { pm.collectionVariables.set(\"mandateReference\", pm.response.json().mandateReference); }"
+            ],
+            "type" : "text/javascript"
+          }
+        }
+      ],
+      "name" : "Create direct debit mandate",
+      "request" : {
+        "body" : {
+          "mode" : "raw",
+          "options" : {
+            "raw" : {
+              "language" : "json"
+            }
+          },
+          "raw" : "{\n  \"currencyCode\" : \"USD\",\n  \"mandateReference\" : \"dd-{{$guid}}\",\n  \"maxAmount\" : \"500.00\",\n  \"payeeAccount\" : \"SETTLEMENT\",\n  \"payerAccount\" : \"DEP-001\"\n}\n"
+        },
+        "description" : "",
+        "header" : [
+          {
+            "key" : "Content-Type",
+            "value" : "application/json"
+          },
+          {
+            "key" : "X-Correlation-Id",
+            "value" : "postman-{{$guid}}"
+          },
+          {
+            "key" : "X-Organization-Id",
+            "value" : "{{organizationId}}"
+          },
+          {
+            "disabled" : true,
+            "key" : "Authorization",
+            "value" : "Bearer {{accessToken}}"
+          }
+        ],
+        "method" : "POST",
+        "url" : {
+          "host" : [
+            "{{baseUrl}}"
+          ],
+          "path" : [
+            "api",
+            "v1",
+            "direct-debits",
+            "mandates"
+          ],
+          "raw" : "{{baseUrl}}/api/v1/direct-debits/mandates"
+        }
+      }
+    },
+    {
+      "name" : "Get mandate",
+      "request" : {
+        "description" : "",
+        "header" : [
+          {
+            "key" : "X-Correlation-Id",
+            "value" : "postman-{{$guid}}"
+          },
+          {
+            "key" : "X-Organization-Id",
+            "value" : "{{organizationId}}"
+          },
+          {
+            "disabled" : true,
+            "key" : "Authorization",
+            "value" : "Bearer {{accessToken}}"
+          }
+        ],
+        "method" : "GET",
+        "url" : {
+          "host" : [
+            "{{baseUrl}}"
+          ],
+          "path" : [
+            "api",
+            "v1",
+            "direct-debits",
+            "mandates",
+            "{{mandateReference}}"
+          ],
+          "raw" : "{{baseUrl}}/api/v1/direct-debits/mandates/{{mandateReference}}"
+        }
+      }
+    },
+    {
+      "name" : "Collect on mandate",
+      "request" : {
+        "body" : {
+          "mode" : "raw",
+          "options" : {
+            "raw" : {
+              "language" : "json"
+            }
+          },
+          "raw" : "{\n  \"amount\" : \"50.00\",\n  \"collectionReference\" : \"col-{{$guid}}\",\n  \"currencyCode\" : \"USD\",\n  \"narrative\" : \"Monthly bill\"\n}\n"
+        },
+        "description" : "collectionReference becomes the payment idempotency key (prefixed \"dd-\"), max 77 chars.",
+        "header" : [
+          {
+            "key" : "Content-Type",
+            "value" : "application/json"
+          },
+          {
+            "key" : "X-Correlation-Id",
+            "value" : "postman-{{$guid}}"
+          },
+          {
+            "key" : "X-Organization-Id",
+            "value" : "{{organizationId}}"
+          },
+          {
+            "disabled" : true,
+            "key" : "Authorization",
+            "value" : "Bearer {{accessToken}}"
+          }
+        ],
+        "method" : "POST",
+        "url" : {
+          "host" : [
+            "{{baseUrl}}"
+          ],
+          "path" : [
+            "api",
+            "v1",
+            "direct-debits",
+            "mandates",
+            "{{mandateReference}}",
+            "collect"
+          ],
+          "raw" : "{{baseUrl}}/api/v1/direct-debits/mandates/{{mandateReference}}/collect"
+        }
+      }
+    },
+    {
+      "name" : "Cancel mandate",
+      "request" : {
+        "description" : "",
+        "header" : [
+          {
+            "key" : "X-Correlation-Id",
+            "value" : "postman-{{$guid}}"
+          },
+          {
+            "key" : "X-Organization-Id",
+            "value" : "{{organizationId}}"
+          },
+          {
+            "disabled" : true,
+            "key" : "Authorization",
+            "value" : "Bearer {{accessToken}}"
+          }
+        ],
+        "method" : "POST",
+        "url" : {
+          "host" : [
+            "{{baseUrl}}"
+          ],
+          "path" : [
+            "api",
+            "v1",
+            "direct-debits",
+            "mandates",
+            "{{mandateReference}}",
+            "cancel"
+          ],
+          "raw" : "{{baseUrl}}/api/v1/direct-debits/mandates/{{mandateReference}}/cancel"
+        }
+      }
+    },
+    {
+      "event" : [
+        {
+          "listen" : "test",
+          "script" : {
+            "exec" : [
+              "const ok = pm.response.code < 300;",
+              "pm.test(\"2xx\", () => pm.expect(ok).to.be.true);",
+              "if (ok) { pm.collectionVariables.set(\"standingOrderId\", pm.response.json().id); }"
+            ],
+            "type" : "text/javascript"
+          }
+        }
+      ],
+      "name" : "Create standing order",
+      "request" : {
+        "body" : {
+          "mode" : "raw",
+          "options" : {
+            "raw" : {
+              "language" : "json"
+            }
+          },
+          "raw" : "{\n  \"amount\" : \"100.00\",\n  \"creditorAccount\" : \"SETTLEMENT\",\n  \"currencyCode\" : \"USD\",\n  \"debtorAccount\" : \"DEP-001\",\n  \"endDate\" : \"2026-12-01\",\n  \"frequency\" : \"MONTHLY\",\n  \"narrative\" : \"Rent\",\n  \"startDate\" : \"2026-02-01\"\n}\n"
+        },
+        "description" : "frequency: DAILY | WEEKLY | MONTHLY.",
+        "header" : [
+          {
+            "key" : "Content-Type",
+            "value" : "application/json"
+          },
+          {
+            "key" : "X-Correlation-Id",
+            "value" : "postman-{{$guid}}"
+          },
+          {
+            "key" : "X-Organization-Id",
+            "value" : "{{organizationId}}"
+          },
+          {
+            "disabled" : true,
+            "key" : "Authorization",
+            "value" : "Bearer {{accessToken}}"
+          }
+        ],
+        "method" : "POST",
+        "url" : {
+          "host" : [
+            "{{baseUrl}}"
+          ],
+          "path" : [
+            "api",
+            "v1",
+            "standing-orders"
+          ],
+          "raw" : "{{baseUrl}}/api/v1/standing-orders"
+        }
+      }
+    },
+    {
+      "name" : "Get standing order",
+      "request" : {
+        "description" : "",
+        "header" : [
+          {
+            "key" : "X-Correlation-Id",
+            "value" : "postman-{{$guid}}"
+          },
+          {
+            "key" : "X-Organization-Id",
+            "value" : "{{organizationId}}"
+          },
+          {
+            "disabled" : true,
+            "key" : "Authorization",
+            "value" : "Bearer {{accessToken}}"
+          }
+        ],
+        "method" : "GET",
+        "url" : {
+          "host" : [
+            "{{baseUrl}}"
+          ],
+          "path" : [
+            "api",
+            "v1",
+            "standing-orders",
+            "{{standingOrderId}}"
+          ],
+          "raw" : "{{baseUrl}}/api/v1/standing-orders/{{standingOrderId}}"
+        }
+      }
+    },
+    {
+      "name" : "Cancel standing order",
+      "request" : {
+        "description" : "",
+        "header" : [
+          {
+            "key" : "X-Correlation-Id",
+            "value" : "postman-{{$guid}}"
+          },
+          {
+            "key" : "X-Organization-Id",
+            "value" : "{{organizationId}}"
+          },
+          {
+            "disabled" : true,
+            "key" : "Authorization",
+            "value" : "Bearer {{accessToken}}"
+          }
+        ],
+        "method" : "POST",
+        "url" : {
+          "host" : [
+            "{{baseUrl}}"
+          ],
+          "path" : [
+            "api",
+            "v1",
+            "standing-orders",
+            "{{standingOrderId}}",
+            "cancel"
+          ],
+          "raw" : "{{baseUrl}}/api/v1/standing-orders/{{standingOrderId}}/cancel"
+        }
+      }
+    },
+    {
+      "name" : "Run due standing orders",
+      "request" : {
+        "description" : "Same batch the scheduler runs; safe to call by hand.",
+        "header" : [
+          {
+            "key" : "X-Correlation-Id",
+            "value" : "postman-{{$guid}}"
+          },
+          {
+            "key" : "X-Organization-Id",
+            "value" : "{{organizationId}}"
+          },
+          {
+            "disabled" : true,
+            "key" : "Authorization",
+            "value" : "Bearer {{accessToken}}"
+          }
+        ],
+        "method" : "POST",
+        "url" : {
+          "host" : [
+            "{{baseUrl}}"
+          ],
+          "path" : [
+            "api",
+            "v1",
+            "standing-orders",
+            "run"
+          ],
+          "raw" : "{{baseUrl}}/api/v1/standing-orders/run"
+        }
+      }
+    }
+  ],
+  "variable" : [
+    {
+      "key" : "baseUrl",
+      "value" : "http://localhost:8084"
+    },
+    {
+      "key" : "organizationId",
+      "value" : "DEFAULT"
+    },
+    {
+      "key" : "accessToken",
+      "value" : ""
+    },
+    {
+      "key" : "paymentId",
+      "value" : ""
+    },
+    {
+      "key" : "alias",
+      "value" : ""
+    },
+    {
+      "key" : "billerCode",
+      "value" : ""
+    },
+    {
+      "key" : "mandateReference",
+      "value" : ""
+    },
+    {
+      "key" : "standingOrderId",
+      "value" : ""
+    }
+  ]
+}

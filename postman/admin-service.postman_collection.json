@@ -1,0 +1,372 @@
+{
+  "info" : {
+    "description" : "RBAC roles, maker-checker approvals, and the audit trail. Generated from the service's controllers. Set {{baseUrl}} to the gateway (http://localhost:8080) to go through the edge instead of hitting the service directly. Authorization is disabled by default: enable it and set {{accessToken}} once gateway.security.enabled=true.",
+    "name" : "Core Banking — admin-service",
+    "schema" : "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item" : [
+    {
+      "event" : [
+        {
+          "listen" : "test",
+          "script" : {
+            "exec" : [
+              "pm.test(\"2xx\", () => pm.expect(pm.response.code).to.be.below(300));"
+            ],
+            "type" : "text/javascript"
+          }
+        }
+      ],
+      "name" : "Create role",
+      "request" : {
+        "body" : {
+          "mode" : "raw",
+          "options" : {
+            "raw" : {
+              "language" : "json"
+            }
+          },
+          "raw" : "{\n  \"name\" : \"{{roleName}}\",\n  \"permissions\" : [\n    \"account:read\",\n    \"account:open\"\n  ]\n}\n"
+        },
+        "description" : "Role name max 60 chars.",
+        "header" : [
+          {
+            "key" : "Content-Type",
+            "value" : "application/json"
+          },
+          {
+            "key" : "X-Correlation-Id",
+            "value" : "postman-{{$guid}}"
+          },
+          {
+            "key" : "X-Organization-Id",
+            "value" : "{{organizationId}}"
+          },
+          {
+            "disabled" : true,
+            "key" : "Authorization",
+            "value" : "Bearer {{accessToken}}"
+          }
+        ],
+        "method" : "POST",
+        "url" : {
+          "host" : [
+            "{{baseUrl}}"
+          ],
+          "path" : [
+            "api",
+            "v1",
+            "admin",
+            "roles"
+          ],
+          "query" : [
+            {
+              "key" : "actor",
+              "value" : "{{maker}}"
+            }
+          ],
+          "raw" : "{{baseUrl}}/api/v1/admin/roles?actor={{maker}}"
+        }
+      }
+    },
+    {
+      "name" : "List roles",
+      "request" : {
+        "description" : "",
+        "header" : [
+          {
+            "key" : "X-Correlation-Id",
+            "value" : "postman-{{$guid}}"
+          },
+          {
+            "key" : "X-Organization-Id",
+            "value" : "{{organizationId}}"
+          },
+          {
+            "disabled" : true,
+            "key" : "Authorization",
+            "value" : "Bearer {{accessToken}}"
+          }
+        ],
+        "method" : "GET",
+        "url" : {
+          "host" : [
+            "{{baseUrl}}"
+          ],
+          "path" : [
+            "api",
+            "v1",
+            "admin",
+            "roles"
+          ],
+          "raw" : "{{baseUrl}}/api/v1/admin/roles"
+        }
+      }
+    },
+    {
+      "name" : "Check permission",
+      "request" : {
+        "description" : "Returns granted true/false.",
+        "header" : [
+          {
+            "key" : "X-Correlation-Id",
+            "value" : "postman-{{$guid}}"
+          },
+          {
+            "key" : "X-Organization-Id",
+            "value" : "{{organizationId}}"
+          },
+          {
+            "disabled" : true,
+            "key" : "Authorization",
+            "value" : "Bearer {{accessToken}}"
+          }
+        ],
+        "method" : "GET",
+        "url" : {
+          "host" : [
+            "{{baseUrl}}"
+          ],
+          "path" : [
+            "api",
+            "v1",
+            "admin",
+            "roles",
+            "{{roleName}}",
+            "permissions",
+            "account:read"
+          ],
+          "raw" : "{{baseUrl}}/api/v1/admin/roles/{{roleName}}/permissions/account:read"
+        }
+      }
+    },
+    {
+      "event" : [
+        {
+          "listen" : "test",
+          "script" : {
+            "exec" : [
+              "const ok = pm.response.code < 300;",
+              "pm.test(\"2xx\", () => pm.expect(ok).to.be.true);",
+              "if (ok) { pm.collectionVariables.set(\"approvalId\", pm.response.json().id); }"
+            ],
+            "type" : "text/javascript"
+          }
+        }
+      ],
+      "name" : "Submit approval",
+      "request" : {
+        "body" : {
+          "mode" : "raw",
+          "options" : {
+            "raw" : {
+              "language" : "json"
+            }
+          },
+          "raw" : "{\n  \"action\" : \"LIMIT_INCREASE\",\n  \"maker\" : \"{{maker}}\",\n  \"payload\" : \"{\\\"accountCode\\\":\\\"DEP-001\\\",\\\"newLimit\\\":\\\"10000.00\\\"}\"\n}\n"
+        },
+        "description" : "payload is free-form JSON as a string, max 2000 chars.",
+        "header" : [
+          {
+            "key" : "Content-Type",
+            "value" : "application/json"
+          },
+          {
+            "key" : "X-Correlation-Id",
+            "value" : "postman-{{$guid}}"
+          },
+          {
+            "key" : "X-Organization-Id",
+            "value" : "{{organizationId}}"
+          },
+          {
+            "disabled" : true,
+            "key" : "Authorization",
+            "value" : "Bearer {{accessToken}}"
+          }
+        ],
+        "method" : "POST",
+        "url" : {
+          "host" : [
+            "{{baseUrl}}"
+          ],
+          "path" : [
+            "api",
+            "v1",
+            "admin",
+            "approvals"
+          ],
+          "raw" : "{{baseUrl}}/api/v1/admin/approvals"
+        }
+      }
+    },
+    {
+      "name" : "Approve (four-eyes)",
+      "request" : {
+        "body" : {
+          "mode" : "raw",
+          "options" : {
+            "raw" : {
+              "language" : "json"
+            }
+          },
+          "raw" : "{\n  \"checker\" : \"{{checker}}\",\n  \"reason\" : null\n}\n"
+        },
+        "description" : "The checker must differ from the maker — using the same name returns 422.",
+        "header" : [
+          {
+            "key" : "Content-Type",
+            "value" : "application/json"
+          },
+          {
+            "key" : "X-Correlation-Id",
+            "value" : "postman-{{$guid}}"
+          },
+          {
+            "key" : "X-Organization-Id",
+            "value" : "{{organizationId}}"
+          },
+          {
+            "disabled" : true,
+            "key" : "Authorization",
+            "value" : "Bearer {{accessToken}}"
+          }
+        ],
+        "method" : "POST",
+        "url" : {
+          "host" : [
+            "{{baseUrl}}"
+          ],
+          "path" : [
+            "api",
+            "v1",
+            "admin",
+            "approvals",
+            "{{approvalId}}",
+            "approve"
+          ],
+          "raw" : "{{baseUrl}}/api/v1/admin/approvals/{{approvalId}}/approve"
+        }
+      }
+    },
+    {
+      "name" : "Reject",
+      "request" : {
+        "body" : {
+          "mode" : "raw",
+          "options" : {
+            "raw" : {
+              "language" : "json"
+            }
+          },
+          "raw" : "{\n  \"checker\" : \"{{checker}}\",\n  \"reason\" : \"Insufficient justification\"\n}\n"
+        },
+        "description" : "A request can only be decided once; a second decision returns 422.",
+        "header" : [
+          {
+            "key" : "Content-Type",
+            "value" : "application/json"
+          },
+          {
+            "key" : "X-Correlation-Id",
+            "value" : "postman-{{$guid}}"
+          },
+          {
+            "key" : "X-Organization-Id",
+            "value" : "{{organizationId}}"
+          },
+          {
+            "disabled" : true,
+            "key" : "Authorization",
+            "value" : "Bearer {{accessToken}}"
+          }
+        ],
+        "method" : "POST",
+        "url" : {
+          "host" : [
+            "{{baseUrl}}"
+          ],
+          "path" : [
+            "api",
+            "v1",
+            "admin",
+            "approvals",
+            "{{approvalId}}",
+            "reject"
+          ],
+          "raw" : "{{baseUrl}}/api/v1/admin/approvals/{{approvalId}}/reject"
+        }
+      }
+    },
+    {
+      "name" : "Audit trail by actor",
+      "request" : {
+        "description" : "Every approval decision is written here.",
+        "header" : [
+          {
+            "key" : "X-Correlation-Id",
+            "value" : "postman-{{$guid}}"
+          },
+          {
+            "key" : "X-Organization-Id",
+            "value" : "{{organizationId}}"
+          },
+          {
+            "disabled" : true,
+            "key" : "Authorization",
+            "value" : "Bearer {{accessToken}}"
+          }
+        ],
+        "method" : "GET",
+        "url" : {
+          "host" : [
+            "{{baseUrl}}"
+          ],
+          "path" : [
+            "api",
+            "v1",
+            "admin",
+            "audit"
+          ],
+          "query" : [
+            {
+              "key" : "actor",
+              "value" : "{{maker}}"
+            }
+          ],
+          "raw" : "{{baseUrl}}/api/v1/admin/audit?actor={{maker}}"
+        }
+      }
+    }
+  ],
+  "variable" : [
+    {
+      "key" : "baseUrl",
+      "value" : "http://localhost:8089"
+    },
+    {
+      "key" : "organizationId",
+      "value" : "DEFAULT"
+    },
+    {
+      "key" : "accessToken",
+      "value" : ""
+    },
+    {
+      "key" : "roleName",
+      "value" : "TELLER"
+    },
+    {
+      "key" : "approvalId",
+      "value" : ""
+    },
+    {
+      "key" : "maker",
+      "value" : "alice"
+    },
+    {
+      "key" : "checker",
+      "value" : "bob"
+    }
+  ]
+}

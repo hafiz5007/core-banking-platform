@@ -1,62 +1,66 @@
 spring:
   application:
     name: api-gateway
+  # The IdP to validate bearer tokens against, used when gateway.security.enabled=true.
+  # Set CBP_GATEWAY_JWT_ISSUER_URI in .env; left empty, the resource server is not configured.
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${CBP_GATEWAY_JWT_ISSUER_URI:}
   cloud:
     gateway:
       mvc:
         routes:
           - id: account-service
-            uri: ${ACCOUNT_URI:http://localhost:8081}
+            uri: ${CBP_ACCOUNT_URI:http://localhost:8081}
             predicates:
               - Path=/api/v1/accounts/**,/api/v1/products/**
           - id: customer-service
-            uri: ${CUSTOMER_URI:http://localhost:8082}
+            uri: ${CBP_CUSTOMER_URI:http://localhost:8082}
             predicates:
               - Path=/api/v1/customers/**,/api/v1/open-banking/**
           - id: ledger-service
-            uri: ${LEDGER_URI:http://localhost:8083}
+            uri: ${CBP_LEDGER_URI:http://localhost:8083}
             predicates:
               - Path=/api/v1/ledger/**
           - id: payment-service
-            uri: ${PAYMENT_URI:http://localhost:8084}
+            uri: ${CBP_PAYMENT_URI:http://localhost:8084}
             predicates:
               - Path=/api/v1/payments/**,/api/v1/standing-orders/**,/api/v1/direct-debits/**,/api/v1/aliases/**,/api/v1/billers/**
           - id: interest-fee-service
-            uri: ${INTEREST_URI:http://localhost:8085}
+            uri: ${CBP_INTEREST_URI:http://localhost:8085}
             predicates:
               - Path=/api/v1/interest/**
           - id: card-service
-            uri: ${CARD_URI:http://localhost:8086}
+            uri: ${CBP_CARD_URI:http://localhost:8086}
             predicates:
               - Path=/api/v1/cards/**
           - id: notification-service
-            uri: ${NOTIFICATION_URI:http://localhost:8087}
+            uri: ${CBP_NOTIFICATION_URI:http://localhost:8087}
             predicates:
               - Path=/api/v1/notifications/**
           - id: risk-aml-service
-            uri: ${RISK_URI:http://localhost:8088}
+            uri: ${CBP_RISK_URI:http://localhost:8088}
             predicates:
               - Path=/api/v1/risk/**
           - id: admin-service
-            uri: ${ADMIN_URI:http://localhost:8089}
+            uri: ${CBP_ADMIN_URI:http://localhost:8089}
             predicates:
               - Path=/api/v1/admin/**
           - id: reporting-service
-            uri: ${REPORTING_URI:http://localhost:8090}
+            uri: ${CBP_REPORTING_URI:http://localhost:8090}
             predicates:
               - Path=/api/v1/reports/**
 
 server:
-  port: ${SERVER_PORT:8080}
+  port: ${CBP_SERVER_PORT:8080}
 
 gateway:
   security:
-    enabled: ${GATEWAY_SECURITY_ENABLED:false}
+    enabled: ${CBP_GATEWAY_SECURITY_ENABLED:false}
   rate-limit:
-    per-minute: ${GATEWAY_RATE_LIMIT:120}
-
-# Configure when gateway.security.enabled=true (point at the bank's identity provider):
-# spring.security.oauth2.resourceserver.jwt.issuer-uri: https://idp.example.com/realms/bank
+    per-minute: ${CBP_GATEWAY_RATE_LIMIT:120}
 
 management:
   endpoints:

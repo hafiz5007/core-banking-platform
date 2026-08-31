@@ -46,6 +46,7 @@ class ApiErrorTest {
                         ErrorCode.RESOURCE_NOT_FOUND,
                         ErrorCode.BUSINESS_RULE_VIOLATION,
                         ErrorCode.DUPLICATE_REQUEST,
+                        ErrorCode.UNAUTHENTICATED,
                         ErrorCode.INTERNAL_ERROR);
     }
 }
