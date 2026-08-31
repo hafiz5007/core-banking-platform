@@ -10,6 +10,7 @@ import com.bank.admin.domain.Role;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.Size;
 import java.time.Instant;
 import java.util.List;
 import java.util.Set;
@@ -82,7 +83,7 @@ public class AdminController {
         return auditService.byActor(actor).stream().map(AuditResponse::from).toList();
     }
 
-    public record CreateRoleRequest(@NotBlank String name, @NotEmpty Set<String> permissions) {
+    public record CreateRoleRequest(@NotBlank @Size(max = 60) String name, @NotEmpty Set<String> permissions) {
     }
 
     public record RoleResponse(String name, Set<String> permissions) {
@@ -94,11 +95,11 @@ public class AdminController {
     public record PermissionCheck(String role, String permission, boolean granted) {
     }
 
-    public record SubmitApprovalRequest(@NotBlank String action, @NotBlank String payload,
-                                        @NotBlank String maker) {
+    public record SubmitApprovalRequest(@NotBlank @Size(max = 80) String action, @NotBlank @Size(max = 2000) String payload,
+                                        @NotBlank @Size(max = 80) String maker) {
     }
 
-    public record DecisionRequest(@NotBlank String checker, String reason) {
+    public record DecisionRequest(@NotBlank @Size(max = 80) String checker, @Size(max = 280) String reason) {
     }
 
     public record ApprovalResponse(UUID id, String action, String maker, ApprovalStatus status,

@@ -10,6 +10,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.net.URI;
 import java.util.Currency;
@@ -62,9 +63,9 @@ public class DirectDebitController {
     }
 
     public record CreateMandateRequest(
-            @NotBlank String mandateReference,
-            @NotBlank String payerAccount,
-            @NotBlank String payeeAccount,
+            @NotBlank @Size(max = 60) String mandateReference,
+            @NotBlank @Size(max = 40) String payerAccount,
+            @NotBlank @Size(max = 40) String payeeAccount,
             @NotNull @Positive BigDecimal maxAmount,
             @NotNull @Pattern(regexp = "^[A-Z]{3}$", message = "currencyCode must be a 3-letter ISO-4217 code")
             String currencyCode) {
@@ -74,8 +75,8 @@ public class DirectDebitController {
             @NotNull @Positive BigDecimal amount,
             @NotNull @Pattern(regexp = "^[A-Z]{3}$", message = "currencyCode must be a 3-letter ISO-4217 code")
             String currencyCode,
-            @NotBlank String collectionReference,
-            String narrative) {
+            @NotBlank @Size(max = 77) String collectionReference,
+            @Size(max = 280) String narrative) {
     }
 
     public record MandateResponse(String mandateReference, String payerAccount, String payeeAccount,

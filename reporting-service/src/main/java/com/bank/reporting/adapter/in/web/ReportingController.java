@@ -6,6 +6,7 @@ import com.bank.reporting.domain.ReportMetric;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.UUID;
@@ -43,9 +44,9 @@ public class ReportingController {
 
     public record RecordMetricRequest(
             @NotNull LocalDate businessDate,
-            @NotBlank String metricKey,
+            @NotBlank @Size(max = 80) String metricKey,
             @NotNull BigDecimal value,
-            @NotBlank String source) {
+            @NotBlank @Size(max = 60) String source) {
     }
 
     public record MetricResponse(UUID id, String metricKey, BigDecimal value) {

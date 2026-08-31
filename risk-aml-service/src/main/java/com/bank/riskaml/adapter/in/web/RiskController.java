@@ -9,6 +9,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.util.Currency;
 import java.util.UUID;
@@ -49,15 +50,15 @@ public class RiskController {
     }
 
     public record EvaluateRequest(
-            @NotBlank String transactionRef,
-            @NotBlank String accountRef,
+            @NotBlank @Size(max = 80) String transactionRef,
+            @NotBlank @Size(max = 40) String accountRef,
             @NotNull @Positive BigDecimal amount,
             @NotNull @Pattern(regexp = "^[A-Z]{3}$", message = "currencyCode must be a 3-letter ISO-4217 code")
             String currencyCode,
             String counterpartyCountry) {
     }
 
-    public record CloseCaseRequest(String resolution, boolean fileSar) {
+    public record CloseCaseRequest(@Size(max = 500) String resolution, boolean fileSar) {
     }
 
     public record CaseResponse(UUID id, String organizationId, String accountRef, String ruleCode,

@@ -3,6 +3,7 @@ package com.bank.account.adapter.in.web.dto;
 import com.bank.account.domain.MandateType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import java.util.List;
 import java.util.UUID;
 
@@ -13,7 +14,7 @@ import java.util.UUID;
  * @param mandateType       authorization rule; defaults to SINGLE when omitted
  */
 public record OpenFromProductRequest(
-        @NotBlank String productCode,
+        @NotBlank @Size(max = 40) String productCode,
         @NotNull UUID primaryCustomerId,
         List<UUID> additionalHolders,
         MandateType mandateType) {

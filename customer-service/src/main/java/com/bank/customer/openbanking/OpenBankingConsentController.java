@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import java.net.URI;
 import java.time.Instant;
 import java.util.Set;
@@ -51,14 +52,14 @@ public class OpenBankingConsentController {
     }
 
     public record RequestConsentRequest(
-            @NotBlank String consentReference,
+            @NotBlank @Size(max = 60) String consentReference,
             @NotNull UUID customerId,
-            @NotBlank String tpp,
+            @NotBlank @Size(max = 120) String tpp,
             @NotEmpty Set<ConsentScope> scopes,
             int validityDays) {
     }
 
-    public record AuthoriseRequest(@NotBlank String scaReference) {
+    public record AuthoriseRequest(@NotBlank @Size(max = 80) String scaReference) {
     }
 
     public record ConsentResponse(String consentReference, UUID customerId, String tpp, String scopes,

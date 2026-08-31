@@ -7,6 +7,7 @@ import com.bank.notification.domain.NotificationType;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import java.util.UUID;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -45,22 +46,22 @@ public class NotificationController {
     }
 
     public record AlertRequest(
-            @NotBlank String recipient,
+            @NotBlank @Size(max = 320) String recipient,
             @NotNull NotificationType type,
             @NotNull NotificationChannel channel,
-            @NotBlank String message) {
+            @NotBlank @Size(max = 500) String message) {
     }
 
     public record AlertResponse(UUID id, String status) {
     }
 
-    public record OtpRequest(@NotBlank String recipient, @NotNull NotificationChannel channel) {
+    public record OtpRequest(@NotBlank @Size(max = 320) String recipient, @NotNull NotificationChannel channel) {
     }
 
     public record OtpIssuedResponse(UUID challengeId) {
     }
 
-    public record OtpVerifyRequest(@NotNull UUID challengeId, @NotBlank String code) {
+    public record OtpVerifyRequest(@NotNull UUID challengeId, @NotBlank @Size(max = 6) String code) {
     }
 
     public record OtpVerifyResponse(boolean verified) {
