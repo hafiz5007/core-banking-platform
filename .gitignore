@@ -25,3 +25,6 @@ Thumbs.db
 *.jar
 *.war
 !**/maven-wrapper.jar
+
+# Seed script state: ids of records with no natural key, so re-runs reuse them.
+scripts/.seed-state.json

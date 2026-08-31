@@ -174,6 +174,13 @@ Each is already a port with a working stub; swap in the real client and add cont
 
 - [ ] **P1 — Observability**: ship dashboards (Grafana) and SLOs/alerts; wire OpenTelemetry export
   to a collector (tracing bridge is on the classpath, export is not configured).
+- [ ] **P1 - Correlation id does not cross the gRPC or Kafka hops.** `CorrelationIdFilter`
+  propagates it across REST, but `JwtClientInterceptor` puts only `authorization` into gRPC metadata
+  and the outbox payload carries no correlation header. A request can therefore be traced
+  account-service -> ledger-service only by matching on the narrative or entry id, not by id. Add a
+  `x-correlation-id` metadata key to the gRPC interceptors and a correlation field to the outbox
+  event. Found while writing `docs/SERVICE_DEPENDENCIES.md`.
+
 - [ ] **P1 — Contract tests** (Pact / Spring Cloud Contract) for every inter-service and rail
   interface (screening, ledger, clearing, SWIFT, FX).
 - [ ] **P1 — Performance & soak tests** (Gatling/k6) to the NFR targets (≥1,000 TPS, p95 < 800 ms).

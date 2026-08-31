@@ -52,6 +52,10 @@ git checkout <release-tag>          # deploy a tag, never a moving branch
 cp .env.example .env
 ```
 
+On Windows, `scripts\Setup-Environment.ps1 -Profile Sandbox` does all of the below in one
+step - it generates the secrets, writes the file, and restricts it to the current user with
+`icacls`.
+
 Generate the secrets **on the server** and keep them there:
 
 ```bash

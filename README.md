@@ -73,6 +73,13 @@ and fill it in — `.env` is gitignored and is never committed:
 cp .env.example .env
 ```
 
+On Windows, a script generates it for you and creates the secrets:
+
+```powershell
+.\scripts\Setup-Environment.ps1              # everything off, fastest start
+.\scripts\Setup-Environment.ps1 -Profile Sandbox   # service auth + Kafka on, secrets generated
+```
+
 `.env.example` documents every variable, what it does, and its safe default. Nothing has a weak
 default: an unset variable turns a feature *off* rather than enabling it insecurely.
 
@@ -182,6 +189,9 @@ for local, gateway and sandbox. See `postman/README.md`.
 - **Releasing to a test server:** `docs/DEPLOYMENT_SANDBOX.md` — what sandbox mode means here, how
   to switch every feature on, how to prove the switches took effect, and what still stops it being
   production.
+- **Service dependencies, step by step:** `docs/SERVICE_DEPENDENCIES.md` - which service calls
+  which, how to verify each hop, debugging with or without Docker, and seeding test data that
+  survives restarts.
 - **Debugging and testing:** `docs/DEBUG_TESTING.md` — running the suites, reading the reports,
   tracing a request by correlation id, attaching a debugger, and the traps this codebase sets.
 
