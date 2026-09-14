@@ -179,7 +179,7 @@ bring their own runtime.
 | **Transactional outbox** | payment-service `OutboxRelay` | `@Scheduled(fixedDelayString = "${outbox.relay.delay-ms:5000}")`. ADR-004. |
 | **Saga + compensation** | payment-service | Rail failure reverses the ledger posting; the payment ends `COMPENSATED`, never silently lost. |
 | **Idempotency** | ledger entries, payment initiation | `idempotencyKey` — a replay returns the original result, no double-post. |
-| **Scheduled batches** | interest-fee `EodScheduler` (`0 0 23 * * *`), payment `StandingOrderScheduler` (`0 30 0 * * *`) | **Both off by default** — each bean is `@ConditionalOnProperty` on `eod.scheduler.enabled` / `standing-orders.scheduler.enabled` (`true` required). Cron overridable once enabled. |
+| **Scheduled batches** | interest-fee `EodScheduler` (`0 0 23 * * *`), payment `StandingOrderScheduler` (`0 30 0 * * *`) | **Both off by default** (`CBP_EOD_SCHEDULER_ENABLED`, `CBP_STANDING_ORDERS_SCHEDULER_ENABLED`) so a local or CI run never fires one; each has an API endpoint that runs the same work on demand. |
 | **Resilience** | all outbound HTTP | Timeouts + correlation-id propagation. A failed screening call **rejects** the payment; it is never fail-open. Ledger provisioning treats HTTP 409 as idempotent success. |
 
 ### 2.8 Security model
@@ -408,8 +408,9 @@ turns a feature off rather than enabling it weakly.**
 | `CBP_GATEWAY_JWT_ISSUER_URI` | *(empty)* | Bank IdP issuer — bound to `spring.security.oauth2.resourceserver.jwt.issuer-uri` |
 | `CBP_GATEWAY_RATE_LIMIT` | `120` | Requests per minute per client at the gateway |
 | `CBP_<SERVICE>_URI` (`CBP_ACCOUNT_URI`, `CBP_PAYMENT_URI`, …) | `http://localhost:<port>` | Gateway route targets |
-| `EOD_SCHEDULER_CRON` / `STANDING_ORDERS_SCHEDULER_CRON` | `0 0 23 * * *` / `0 30 0 * * *` | Batch schedules. **Only take effect** with `eod.scheduler.enabled=true` / `standing-orders.scheduler.enabled=true`; both default off. |
-| `OUTBOX_RELAY_DELAY_MS` | `5000` | Outbox publish interval. Unlike every other setting this is hard-coded in payment-service's `application.yml` (`outbox.relay.delay-ms: 5000`) with no `${CBP_…}` placeholder, so it is **not** tunable through `.env`/compose. |
+| `CBP_EOD_SCHEDULER_ENABLED` / `CBP_EOD_SCHEDULER_CRON` | `false` / `0 0 23 * * *` | End-of-day accrual batch. Off by default; the API runs the same work on demand. |
+| `CBP_STANDING_ORDERS_SCHEDULER_ENABLED` / `CBP_STANDING_ORDERS_SCHEDULER_CRON` | `false` / `0 30 0 * * *` | Standing-order execution batch. Off by default. |
+| `CBP_OUTBOX_RELAY_DELAY_MS` | `5000` | How often the outbox relay polls for unpublished events, in milliseconds. |
 
 ---
 
@@ -1034,23 +1035,19 @@ currently duplicated).
 
 Things a new developer will trip over. Each is real as of the last verification date.
 
+> Items 1–15 of the previous revision have been worked through; what follows is what remains open.
+
 | # | Issue | Impact | Suggested fix |
 |---|-------|--------|---------------|
-| 1 | **Dockerfiles do not copy `ledger-grpc-api`** although `account-service` and `ledger-service` depend on it, and the parent POM declares thirteen modules the build context lacks. | `docker compose up --build` cannot build. | Section 10.1. |
-| 2 | **`.env` values that compose overrides.** `CBP_LEDGER_POSTING`, `CBP_LEDGER_PROVISIONING` and `CBP_SCREENING_ADAPTER` are hard-coded in `docker-compose.yml`, so editing them in `.env` has no effect under compose. | Confusing config. | Change compose to `${CBP_LEDGER_POSTING:-grpc}` style so `.env` wins. |
-| 3 | **ADR-000 describes a different system** — 7 polyglot services (Java/Kotlin/.NET), Kafka KRaft, Redis, Debezium. The built platform is 13 Java modules with no Kafka, Redis or Debezium anywhere in the code. ADR-005 (Kafka) and ADR-014 (async notification over Kafka) likewise describe unbuilt design. | New joiners plan against the wrong picture. | Mark ADR-000/005/014 `Superseded` or `Proposed — not implemented`, and add an ADR recording the actual all-Java, synchronous decision. |
-| 4 | **Duplicate ADR numbers.** `ADR-001` is both *audit-and-change-history* and *polyglot-language-choice*; `ADR-002` is both *multi-tenancy* and *spring-boot-java21*. Placeholder files `ADR-NNN-title.md` and `ADR-NNN-title copy.md` are also committed. | Cross-references are ambiguous. | Renumber one of each pair; delete the ` copy` placeholder. |
-| 5 | **Directory case mismatch.** Decisions live in `docs/ADR/` but `README.md` links `docs/adr/`. | Works on Windows/macOS, breaks on Linux and in CI. | Pick one case and fix the links. |
-| 6 | **`docs/C4 context diagram sketch.md` is empty**; the populated copy is at the repository root. | Duplicate/dead file. | Move the root file into `docs/` and delete the empty one. |
-| 7 | **`quality` CI job is red on formatting only.** | The gate cannot be trusted as a signal. | Section 10.6 — pick a formatter and apply it once. |
-| 8 | **Flyway checksum risk.** The `CHAR`→`VARCHAR` fix edited already-committed migrations. | Any environment that already applied them will fail on startup. | Safe while every database is rebuilt from scratch; otherwise revert and add a new `V*` migration. `docs/PENDING_TASKS.md` §0 tracks this. |
-| 9 | **No Maven wrapper.** | Everyone must install the right Maven themselves; CI and local can drift. | `mvn wrapper:wrapper -Dmaven=3.9.9` and commit `mvnw`, `mvnw.cmd`, `.mvn/`. |
-| 10 | **All external integrations are stubs** — KYC, sanctions screening, clearing scheme, SWIFT, FX rates, card network, SMS/email sender. | Nothing here talks to a real rail. | Each is already behind a port; `docs/PENDING_TASKS.md` §1 is the swap-in backlog. |
-| 11 | **Service auth is a shared HMAC secret**, so every holder can mint as well as verify. | Adequate for local/CI, not for production. | Move to RS256 + JWKS — ADR-008 "Remaining". |
-| 12 | **Working tree has uncommitted changes** across many files at the time of writing. | Reviewers cannot tell what is intended. | Commit or stash before starting new work. |
-| 13 | **Two services have no walkthrough** — `payment-service` (the most complex service in the platform) and `api-gateway`. `reporting-service`'s file is named `report-service.md`. | The hardest code has no narrative to read first. | Write both using the template in `DEVELOPER_GUIDE_NEXT_PHASE.md`; rename `report-service.md`. |
-| 14 | **Both scheduled batches are disabled.** `EodScheduler` and `StandingOrderScheduler` are `@ConditionalOnProperty`; `eod.scheduler.enabled` is `false` in `application.yml` and `standing-orders.scheduler.enabled` is never set. Neither flag appears in `.env.example` or `docker-compose.yml`. | End-of-day accrual and standing orders never run, in any environment. | Add both flags to `.env.example` and compose, defaulting off but documented; enable in the environments that need them. |
-| 15 | **`outbox.relay.delay-ms` has no `${CBP_…}` placeholder** in `payment-service/application.yml`. | The outbox interval cannot be tuned per environment. | Change to `delay-ms: ${CBP_OUTBOX_RELAY_DELAY_MS:5000}` and document it. |
+| 1 | **`.env` values that compose overrides.** `CBP_LEDGER_POSTING`, `CBP_LEDGER_PROVISIONING` and `CBP_SCREENING_ADAPTER` are hard-coded in `docker-compose.yml`, so editing them in `.env` has no effect under compose. | Confusing config. | Change compose to `${CBP_LEDGER_POSTING:-grpc}` style so `.env` wins. |
+| 2 | **ADR-005 (Kafka) and ADR-014 (async notification) predate the implementation.** Kafka is now genuinely wired (payment-service outbox relay → `payment.events` → notification-service listener), but both ADRs should be re-read against the code before anyone treats them as current. | Minor doc drift. | Re-read and amend where the built design diverged. |
+| 3 | **`quality` CI job is red on formatting only.** Spotless (google-java-format) rejects ~10 files whose style is the repo's house style — 4-space continuation indents, aligned `@param` javadoc, one record component per line. Coverage half passes. | The CI badge on a public README is red. **Highest-priority open item.** | Decide once: `mvn -Pquality spotless:apply` to adopt google-java-format, or swap `<googleJavaFormat/>` for `<palantirJavaFormat/>` (closer to the existing style) and re-run. Section 10.6. |
+| 4 | **Correlation id does not cross the Kafka hop.** The gRPC hop is now fixed (`CorrelationIdClientInterceptor` / `CorrelationIdServerInterceptor` in `common-lib`), but the outbox row carries no correlation id, so an event published by the relay reaches notification-service untagged. | A payment can be traced account → ledger, but not payment → notification. | Add a `correlation_id` column to `outbox_event`, captured from the MDC when the row is written (not when the relay runs — the relay is on a scheduled thread and the request's id is long gone); set it as an `x-correlation-id` Kafka record header in `KafkaEventBrokerAdapter`; read it into the MDC in `PaymentEventListener`. |
+| 5 | **Flyway checksum risk.** An earlier `CHAR`→`VARCHAR` fix edited already-committed migrations. | Any environment that already applied them fails on startup. | Safe while every database is rebuilt from scratch; otherwise revert and add a new `V*` migration. `docs/PENDING_TASKS.md` §0 tracks this. |
+| 6 | **No Maven wrapper.** | Everyone must install the right Maven themselves; CI and local can drift. | `mvn wrapper:wrapper -Dmaven=3.9.9` and commit `mvnw`, `mvnw.cmd`, `.mvn/`. |
+| 7 | **`api-gateway` has no walkthrough.** Ten of the eleven services are written up; `reporting-service`'s file is named `report-service.md`. | The walkthrough index in the README is incomplete. | Write `docs/walkthroughs/api-gateway.md` from the template; rename `report-service.md`. |
+| 8 | **All external integrations are stubs** — KYC, sanctions screening, clearing scheme, SWIFT, FX rates, card network, SMS/email sender. | Nothing here talks to a real rail. | By design, and documented in the README. `docs/PENDING_TASKS.md` §1 is the swap-in backlog. |
+| 9 | **Service auth is a shared HMAC secret**, so every holder can mint as well as verify. | Adequate for local and CI, not for production. | Move to RS256 + JWKS — ADR-008 "Remaining". |
 
 ---
 

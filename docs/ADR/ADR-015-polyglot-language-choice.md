@@ -1,4 +1,4 @@
-# ADR-001: Polyglot Language Strategy — Java for Banking Core, Kotlin for KYC, .NET for Auth
+# ADR-015: Polyglot Language Strategy — Java for Banking Core, Kotlin for KYC, .NET for Auth
 
 - Status: **Accepted**
 - Date: 2026-08-06
@@ -54,4 +54,4 @@ stack (OpenTelemetry), and the same `common-lib` value objects where applicable.
 ## References
 
 - ADR-000 (Architecture Overview) — service inventory and polyglot rationale at a glance
-- ADR-002 — Spring Boot 3.4 + Java 21 selection detail
+- ADR-016 — Spring Boot 3.4 + Java 21 selection detail

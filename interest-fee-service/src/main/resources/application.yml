@@ -33,9 +33,12 @@ interest:
 fee:
   income-account: ${CBP_FEE_INCOME_ACCOUNT:FEE-INCOME}
 
+# End-of-day accrual batch. Off by default so a local or CI run never fires it unexpectedly;
+# turn it on per environment. The API endpoint runs the same batch on demand.
 eod:
   scheduler:
-    enabled: false
+    enabled: ${CBP_EOD_SCHEDULER_ENABLED:false}
+    cron: ${CBP_EOD_SCHEDULER_CRON:0 0 23 * * *}
 
 management:
   endpoints:

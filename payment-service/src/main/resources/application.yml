@@ -53,7 +53,14 @@ crossborder:
 
 outbox:
   relay:
-    delay-ms: 5000
+    delay-ms: ${CBP_OUTBOX_RELAY_DELAY_MS:5000}
+
+# Standing-order execution batch. Off by default, like the end-of-day batch, so it never fires
+# during a local or CI run; the API runs the same work on demand.
+standing-orders:
+  scheduler:
+    enabled: ${CBP_STANDING_ORDERS_SCHEDULER_ENABLED:false}
+    cron: ${CBP_STANDING_ORDERS_SCHEDULER_CRON:0 30 0 * * *}
 
 management:
   endpoints:

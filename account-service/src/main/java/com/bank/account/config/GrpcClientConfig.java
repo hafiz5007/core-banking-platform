@@ -2,6 +2,7 @@ package com.bank.account.config;
 
 import com.bank.common.security.ServiceTokenIssuer;
 import com.bank.common.security.grpc.JwtClientInterceptor;
+import com.bank.common.web.grpc.CorrelationIdClientInterceptor;
 import com.bank.ledger.grpc.v1.LedgerPostingGrpc;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
@@ -51,7 +52,10 @@ public class GrpcClientConfig {
     @Bean
     public LedgerPostingGrpc.LedgerPostingBlockingStub ledgerPostingStub(
             ManagedChannel ledgerChannel, ObjectProvider<ServiceTokenIssuer> issuer) {
-        LedgerPostingGrpc.LedgerPostingBlockingStub stub = LedgerPostingGrpc.newBlockingStub(ledgerChannel);
+        LedgerPostingGrpc.LedgerPostingBlockingStub stub = LedgerPostingGrpc.newBlockingStub(ledgerChannel)
+                // Tracing is attached unconditionally: following a request across the hop must not
+                // depend on whether service auth happens to be switched on.
+                .withInterceptors(new CorrelationIdClientInterceptor());
         ServiceTokenIssuer tokenIssuer = issuer.getIfAvailable();
         if (tokenIssuer == null) {
             log.warn("Service auth is disabled: calls to ledger-service carry no identity");

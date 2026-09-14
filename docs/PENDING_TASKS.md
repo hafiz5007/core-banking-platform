@@ -174,7 +174,22 @@ Each is already a port with a working stub; swap in the real client and add cont
 
 - [ ] **P1 — Observability**: ship dashboards (Grafana) and SLOs/alerts; wire OpenTelemetry export
   to a collector (tracing bridge is on the classpath, export is not configured).
-- [ ] **P1 - Correlation id does not cross the gRPC or Kafka hops.** `CorrelationIdFilter`
+- [x] **P1 — Correlation id now crosses the gRPC hop.** `CorrelationIdClientInterceptor` and
+  `CorrelationIdServerInterceptor` (`common-lib`, `com.bank.common.web.grpc`) carry
+  `x-correlation-id` in gRPC metadata; the server interceptor sets the MDC around every listener
+  callback rather than once in `interceptCall`, because gRPC may run the callbacks on a different
+  thread from the one that opened the call. Wired in `account-service` `GrpcClientConfig`
+  (unconditionally — tracing must not depend on service auth being on) and registered for
+  `ledger-service` in `GrpcTracingConfig`.
+- [ ] **P1 — Correlation id still does not cross the Kafka hop.** The outbox row carries no
+  correlation id, so a relayed event reaches notification-service untagged. Capture the id from the
+  MDC **when the outbox row is written**, not when the relay runs — the relay is a scheduled thread
+  and the originating request's id is long gone by then. Then set it as an `x-correlation-id` record
+  header in `KafkaEventBrokerAdapter` and read it into the MDC in `PaymentEventListener`. Needs a
+  `correlation_id` column on `outbox_event` (new `V7__` migration) and a signature change to
+  `EventBrokerPort.publish`.
+
+- [x] ~~**P1 - Correlation id does not cross the gRPC or Kafka hops.**~~ `CorrelationIdFilter`
   propagates it across REST, but `JwtClientInterceptor` puts only `authorization` into gRPC metadata
   and the outbox payload carries no correlation header. A request can therefore be traced
   account-service -> ledger-service only by matching on the narrative or entry id, not by id. Add a
@@ -193,8 +208,8 @@ Each is already a port with a working stub; swap in the real client and add cont
 
 ## 4b. Audit & multi-tenancy rollout (◑ — decided + reference built)
 
-Decisions ratified in `docs/adr/ADR-001-audit-and-change-history.md` and
-`docs/adr/ADR-002-multi-tenancy.md`. Reference implementation lives in `account-service`
+Decisions ratified in `docs/ADR/ADR-001-audit-and-change-history.md` and
+`docs/ADR/ADR-002-multi-tenancy.md`. Reference implementation lives in `account-service`
 (`organization_id` column + tenant context + `change_log` + `ChangeLogRecorder`) and `common-lib`
 (`TenantContext`, `TenantContextFilter`).
 

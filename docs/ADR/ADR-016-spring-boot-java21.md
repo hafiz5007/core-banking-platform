@@ -1,4 +1,4 @@
-# ADR-002: Spring Boot 3.4 + Java 21 as the JVM Application Framework
+# ADR-016: Spring Boot 3.4 + Java 21 as the JVM Application Framework
 
 - Status: **Accepted**
 - Date: 2026-08-06
@@ -57,7 +57,7 @@ Key factors:
 
 ## References
 
-- ADR-001 — Polyglot language strategy (this ADR covers the JVM subset in detail)
+- ADR-015 — Polyglot language strategy (this ADR covers the JVM subset in detail)
 - ADR-009 — Testcontainers for integration tests
 - [Spring Boot 3.4 Release Notes](https://github.com/spring-projects/spring-boot/wiki/Spring-Boot-3.4-Release-Notes)
 - [JEP 444 — Virtual Threads](https://openjdk.org/jeps/444)
