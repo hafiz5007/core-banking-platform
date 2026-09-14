@@ -2,7 +2,6 @@
 # Walkthrough: customer-service
 
 ## Purpose (2 sentences)
-What business capability does it own?
 Customer-service owns customer onboarding, KYC and sanctions/PEP screening, risk rating, and consent capture. It also manages Open Banking consents for third-party providers with strong customer authentication and bounded expiry.
 
 ## Public API surface
@@ -19,10 +18,10 @@ Customer-service owns customer onboarding, KYC and sanctions/PEP screening, risk
 - Events consumed: none
 
 ## Data model (1 paragraph)
-The service owns five main tables: `customer`, `consent`, `change_log`, `open_banking_consent`, and the repository-backed stubs for external integrations do not persist data. `customer` stores the party master record plus KYC, screening, and risk state; `consent` records append-only customer consent grants or withdrawals; `change_log` captures append-only entity changes with organization and correlation id; and `open_banking_consent` stores TPP access grants with scopes, expiry, and SCA reference. These tables are not shared because onboarding, consent, and regulated access-control rules belong to this bounded context and need transactional consistency and auditability.
+The service owns four tables in its private `customer` schema: `customer`, `consent`, `open_banking_consent`, and `change_log`. The KYC and screening integrations are stubs behind ports and persist nothing of their own — only their outcome is kept, on the customer record as `kyc_status`, `kyc_evidence_ref` and `screening_case_ref`, so evidence is held by reference rather than copied into the bank's store. `customer` stores the party master record plus KYC, screening, and risk state; `consent` records append-only customer consent grants or withdrawals; `change_log` captures append-only entity changes with organization and correlation id; and `open_banking_consent` stores TPP access grants with scopes, expiry, and SCA reference. These tables are not shared because onboarding, consent, and regulated access-control rules belong to this bounded context and need transactional consistency and auditability.
 
 ## Key design decisions (3-5)
-For each:
+
 - Decision: Orchestrate onboarding as a single service use case.
 - Why: The flow needs to create the customer, verify KYC, screen for sanctions/PEP, assign a risk rating, and settle the final status consistently.
 - Alternative considered: Splitting onboarding into several synchronous services.
@@ -62,4 +61,4 @@ For each:
 - Replace stub KYC and screening adapters with real provider integrations.
 - Add richer consent revocation and expiry reporting.
 - Consider extracting Open Banking consent into a separate service if the TPP scope expands.
-```
+- Not covered by service-to-service authentication (ADR-008). customer-service receives only gateway traffic, and guarding it requires the gateway to mint tokens first — see the JWT item in `docs/PENDING_TASKS.md`.

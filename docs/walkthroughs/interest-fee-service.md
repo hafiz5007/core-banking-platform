@@ -2,7 +2,6 @@
 # Walkthrough: interest-fee-service
 
 ## Purpose (2 sentences)
-What business capability does it own?
 Interest-fee-service owns daily interest accrual, interest capitalization, fee application, and the end-of-day batch for deposit accounts. It posts the financial movements to the ledger while keeping a local record of positions, fee charges, and audit history.
 
 ## Public API surface
@@ -19,7 +18,7 @@ Interest-fee-service owns daily interest accrual, interest capitalization, fee a
 The service owns four main tables: `interest_position`, `fee_charge`, `change_log`, and the repository-backed ledger adapter does not persist local accounting state. `interest_position` stores the account code, currency, annual rate, principal, accrued interest, day-count basis, and last accrual date; `fee_charge` stores each fee applied to an account together with the ledger entry id; and `change_log` stores append-only audit rows scoped by organization and correlation id. These tables are not shared because interest, fees, and their audit trail need to stay consistent with the service’s own business rules and batch cadence.
 
 ## Key design decisions (3-5)
-For each:
+
 - Decision: Keep interest as a high-precision accrued amount until capitalization.
 - Why: Accruing to an 8-decimal scale avoids rounding every day and only rounds when the bank capitalizes.
 - Alternative considered: Rounding interest on every accrual step.
@@ -59,4 +58,3 @@ For each:
 - Add tests for different day-count bases and capitalization edge cases.
 - Make the scheduled EOD job observable with metrics and progress reporting if it becomes operationally important.
 - Expand fee policy handling if the bank adds more charge types or waiver rules.
-```

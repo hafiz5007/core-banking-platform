@@ -1,0 +1,121 @@
+{
+  "info" : {
+    "description" : "Operational and regulatory metrics projection, kept off the transactional path. Generated from the service's controllers. Set {{baseUrl}} to the gateway (http://localhost:8080) to go through the edge instead of hitting the service directly. Authorization is disabled by default: enable it and set {{accessToken}} once gateway.security.enabled=true.",
+    "name" : "Core Banking — reporting-service",
+    "schema" : "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item" : [
+    {
+      "event" : [
+        {
+          "listen" : "test",
+          "script" : {
+            "exec" : [
+              "pm.test(\"2xx\", () => pm.expect(pm.response.code).to.be.below(300));"
+            ],
+            "type" : "text/javascript"
+          }
+        }
+      ],
+      "name" : "Record metric",
+      "request" : {
+        "body" : {
+          "mode" : "raw",
+          "options" : {
+            "raw" : {
+              "language" : "json"
+            }
+          },
+          "raw" : "{\n  \"businessDate\" : \"2026-12-31\",\n  \"metricKey\" : \"payments.settled.count\",\n  \"source\" : \"payment-service\",\n  \"value\" : \"1420\"\n}\n"
+        },
+        "description" : "metricKey max 80 chars, source max 60. Append-only.",
+        "header" : [
+          {
+            "key" : "Content-Type",
+            "value" : "application/json"
+          },
+          {
+            "key" : "X-Correlation-Id",
+            "value" : "postman-{{$guid}}"
+          },
+          {
+            "key" : "X-Organization-Id",
+            "value" : "{{organizationId}}"
+          },
+          {
+            "disabled" : true,
+            "key" : "Authorization",
+            "value" : "Bearer {{accessToken}}"
+          }
+        ],
+        "method" : "POST",
+        "url" : {
+          "host" : [
+            "{{baseUrl}}"
+          ],
+          "path" : [
+            "api",
+            "v1",
+            "reports",
+            "metrics"
+          ],
+          "raw" : "{{baseUrl}}/api/v1/reports/metrics"
+        }
+      }
+    },
+    {
+      "name" : "Daily report",
+      "request" : {
+        "description" : "Aggregates the metrics recorded for that business date.",
+        "header" : [
+          {
+            "key" : "X-Correlation-Id",
+            "value" : "postman-{{$guid}}"
+          },
+          {
+            "key" : "X-Organization-Id",
+            "value" : "{{organizationId}}"
+          },
+          {
+            "disabled" : true,
+            "key" : "Authorization",
+            "value" : "Bearer {{accessToken}}"
+          }
+        ],
+        "method" : "GET",
+        "url" : {
+          "host" : [
+            "{{baseUrl}}"
+          ],
+          "path" : [
+            "api",
+            "v1",
+            "reports",
+            "daily"
+          ],
+          "query" : [
+            {
+              "key" : "businessDate",
+              "value" : "2026-12-31"
+            }
+          ],
+          "raw" : "{{baseUrl}}/api/v1/reports/daily?businessDate=2026-12-31"
+        }
+      }
+    }
+  ],
+  "variable" : [
+    {
+      "key" : "baseUrl",
+      "value" : "http://localhost:8090"
+    },
+    {
+      "key" : "organizationId",
+      "value" : "DEFAULT"
+    },
+    {
+      "key" : "accessToken",
+      "value" : ""
+    }
+  ]
+}

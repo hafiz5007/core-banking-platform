@@ -76,3 +76,95 @@ Use **JWT bearer tokens** for service-to-service authentication:
 - ADR-013 — Rate limiting at api-gateway (gateway is the JWT issuance point)
 - [RFC 7519 — JSON Web Token](https://datatracker.ietf.org/doc/html/rfc7519)
 - [Spring Security OAuth2 Resource Server](https://docs.spring.io/spring-security/reference/servlet/oauth2/resource-server/index.html)
+
+---
+
+## Implementation status — session 1 of 2
+
+**Implemented** on the account-service → ledger-service path, both transports. Off by default
+(`service-auth.enabled=false`), so unsecured deployments and existing tests are unchanged.
+
+| Piece | Where |
+| --- | --- |
+| Mint / verify | `common-lib` `security/ServiceTokenIssuer`, `ServiceTokenVerifier`, `ServiceAuthProperties` |
+| gRPC | `security/grpc/JwtClientInterceptor` (caller), `JwtServerInterceptor` (receiver) |
+| REST | `security/web/JwtPropagationInterceptor` (caller), `ServiceTokenAuthFilter` (receiver) |
+| Caller wiring | `account-service` `config/ServiceAuthConfig`, attached to the gRPC stub and the ledger `RestClient` |
+| Receiver wiring | `ledger-service` `config/ServiceAuthConfig` — gRPC interceptor + REST filter; posting demands the `ledger:post` scope |
+
+Claims are as decided: `sub`/`svc` = calling service, `aud` = target, short `exp`, and a `jti` per
+token. Tokens are minted per call rather than cached — they live ~60s and minting is a local HMAC,
+so a cache would buy nothing and risk sending a stale token.
+
+### Deviation from the decision above: HS256, not RSA
+
+The decision specifies RSA signing with the gateway holding the private key and services fetching a
+JWK set. **This slice uses HS256 with a shared secret instead**, for one concrete reason: CI runs
+Gitleaks, and there is no way to ship a working default RSA keypair without committing private key
+material to the repository. A shared secret supplied from the environment keeps the repo clean.
+
+The secret is never defaulted in source — `SERVICE_AUTH_SECRET` must be supplied, and a secret
+shorter than 32 bytes is rejected at startup rather than silently weakening the signature.
+
+What this costs, and why it is acceptable for now: a shared secret means any holder can *mint* as
+well as *verify*, so a compromised receiver could impersonate a caller. That is strictly weaker than
+the asymmetric design and is **not** the intended production posture. It is adequate while every
+service is deployed together from one secret store, and it gets the token plumbing, claim checks,
+scope enforcement, and both transport hooks in place.
+
+**Remaining (session 2):**
+
+1. **Move to RS256 + JWKS** — `ServiceTokenIssuer`/`ServiceTokenVerifier` are the only places that
+   know the algorithm; swap the signer/verifier and read the key from the secret store or the
+   gateway's JWK set. This restores the ADR as written.
+2. **Roll out to the other eight services** — currently only account-service (caller) and
+   ledger-service (receiver) are wired. The receivers that matter next are risk-aml-service
+   (payment-service already calls it over HTTP) and the three services posting to the ledger
+   (payment, card, interest-fee).
+3. **Promote the per-service `ServiceAuthConfig` to a common-lib auto-configuration** so the
+   remaining services opt in with configuration only. Two copies is tolerable; ten would not be.
+4. **Gateway token issuance** — the gateway should mint or exchange the caller's token, per §1 of
+   the decision. Today each service mints its own.
+5. **Method-level scope checks** (`@PreAuthorize`) — the gRPC path enforces `ledger:post`, but the
+   REST filter currently only authenticates. Per-endpoint scopes need Spring Security resource
+   server per §3.
+
+### Session 2 update — rollout complete across internal calls
+
+All five service-to-service call paths now carry a token, and both receivers enforce it:
+
+| Caller | Target | Transport | Scope |
+| --- | --- | --- | --- |
+| account-service | ledger-service | gRPC | `ledger:post` |
+| account-service | ledger-service | REST | `ledger:write` |
+| card-service | ledger-service | REST | `ledger:post` |
+| interest-fee-service | ledger-service | REST | `ledger:post` |
+| payment-service | ledger-service | REST | `ledger:post` |
+| payment-service | risk-aml-service | REST | `risk:evaluate` |
+
+The per-service `ServiceAuthConfig` classes were replaced by a common-lib
+`ServiceAuthAutoConfiguration`, so a service opts in with configuration rather than code. Only
+ledger-service still declares anything by hand — the gRPC interceptor, because the scope it demands
+is specific to that service.
+
+Two independent switches, deliberately:
+
+- `service-auth.enabled` — this service mints tokens for outbound calls.
+- `service-auth.require-inbound` — this service refuses unauthenticated inbound calls.
+
+They are separate so a rollout can enable every caller first and flip receivers afterwards. Turning
+both on at once in a running estate would refuse traffic from any caller not yet deployed.
+
+One trap worth recording: the filter registration originally carried `@ConditionalOnMissingBean`.
+Services already register `FilterRegistrationBean`s for the correlation-id and tenant filters, and
+the condition matches on the raw type — so it silently skipped the auth filter and left the service
+unguarded while appearing configured. A test that asserted an unauthenticated call is refused caught
+it; a test that only asserted the happy path would not have.
+
+**Secrets** now live in a single gitignored `.env` at the repo root, with `.env.example` as the
+committed template. Database credentials moved there too — `docker-compose.yml` no longer contains
+any hardcoded credential.
+
+**Still not done:** RS256/JWKS (see the deviation above); gateway-side issuance; per-endpoint REST
+scopes; and the four services that receive only gateway traffic (customer, admin, notification,
+reporting), which cannot be guarded until the gateway mints tokens.

@@ -1,10 +1,21 @@
 spring:
+  kafka:
+    bootstrap-servers: ${CBP_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      # Wait for all in-sync replicas, and never reorder on retry: the outbox guarantees delivery,
+      # these settings stop the broker silently losing or reordering what it accepted.
+      acks: all
+      properties:
+        enable.idempotence: true
+        max.in.flight.requests.per.connection: 1
   application:
     name: payment-service
   datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:5432/banking}
-    username: ${DB_USER:banking}
-    password: ${DB_PASSWORD:banking}
+    url: ${CBP_DB_URL:jdbc:postgresql://localhost:5432/banking}
+    username: ${CBP_DB_USER:banking}
+    password: ${CBP_DB_PASSWORD:banking}
   jpa:
     hibernate:
       ddl-auto: validate
@@ -22,23 +33,23 @@ spring:
     create-schemas: true
 
 server:
-  port: ${SERVER_PORT:8084}
+  port: ${CBP_SERVER_PORT:8084}
 
 ledger:
-  base-url: ${LEDGER_BASE_URL:http://localhost:8083}
+  base-url: ${CBP_LEDGER_BASE_URL:http://localhost:8083}
 
 # Screening: "stub" (default, in-process) or "risk-service" (calls risk-aml-service).
 screening:
-  adapter: ${SCREENING_ADAPTER:stub}
+  adapter: ${CBP_SCREENING_ADAPTER:stub}
 
 risk:
-  base-url: ${RISK_BASE_URL:http://localhost:8088}
+  base-url: ${CBP_RISK_BASE_URL:http://localhost:8088}
 
 clearing:
-  settlement-account: ${CLEARING_SETTLEMENT_ACCOUNT:SETTLEMENT}
+  settlement-account: ${CBP_CLEARING_SETTLEMENT_ACCOUNT:SETTLEMENT}
 
 crossborder:
-  nostro-account: ${CROSSBORDER_NOSTRO_ACCOUNT:NOSTRO}
+  nostro-account: ${CBP_CROSSBORDER_NOSTRO_ACCOUNT:NOSTRO}
 
 outbox:
   relay:
@@ -65,3 +76,24 @@ springdoc:
 logging:
   pattern:
     level: "%5p [${spring.application.name},correlationId=%X{correlationId:-n/a}]"
+
+# Service-to-service authentication (ADR-008).
+#  enabled         — this service mints tokens for its outbound calls
+#  require-inbound — this service refuses inbound calls that carry no acceptable token
+# No secret is committed: SERVICE_AUTH_SECRET (>= 32 bytes) comes from the environment. See .env.example.
+service-auth:
+  enabled: ${CBP_SERVICE_AUTH_ENABLED:false}
+  require-inbound: ${CBP_SERVICE_AUTH_REQUIRE_INBOUND:false}
+  service-name: payment-service
+  secret: ${CBP_SERVICE_AUTH_SECRET:}
+  issuer: ${CBP_SERVICE_AUTH_ISSUER:core-banking-platform}
+  token-ttl-seconds: ${CBP_SERVICE_AUTH_TOKEN_TTL:60}
+  clock-skew-seconds: ${CBP_SERVICE_AUTH_CLOCK_SKEW:30}
+
+# Kafka event backbone (ADR-005). Off by default: with kafka.enabled=false the outbox relay logs
+# instead of publishing, so the platform runs without a broker.
+kafka:
+  enabled: ${CBP_KAFKA_ENABLED:false}
+  send-timeout-ms: ${CBP_KAFKA_SEND_TIMEOUT_MS:10000}
+  topics:
+    payment-events: ${CBP_KAFKA_TOPIC_PAYMENT_EVENTS:payment.events}

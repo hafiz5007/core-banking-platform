@@ -2,7 +2,6 @@
 # Walkthrough: notification-service
 
 ## Purpose (2 sentences)
-What business capability does it own?
 Notification-service owns customer alerts, one-time passcodes, and statement-style outbound delivery over customer channels. It records the notification state locally, keeps OTP codes hashed and short-lived, and logs each change in an append-only audit trail.
 
 ## Public API surface
@@ -10,13 +9,13 @@ Notification-service owns customer alerts, one-time passcodes, and statement-sty
 - `POST /api/v1/notifications/otp` issue a one-time passcode challenge
 - `POST /api/v1/notifications/otp/verify` verify a one-time passcode
 - Events published: none
-- Events consumed: none
+- **Events consumed:** `payment.events` (group `notification-service`) — a `PaymentPosted` or `PaymentReturned` event becomes a customer transaction alert (ADR-014). Registered only when `kafka.enabled=true`.
 
 ## Data model (1 paragraph)
-The service owns three main tables: `notification`, `otp_challenge`, and `change_log`. `notification` stores the recipient, notification type, channel, message, and delivery status; `otp_challenge` stores only a hashed code plus expiry, attempt count, and consumed state; and `change_log` stores append-only audit rows scoped by organization and correlation id. These tables are not shared because delivery state, OTP security controls, and notification audit history must remain local to the service and independent of other bounded contexts.
+The service owns four tables: `notification`, `otp_challenge`, `change_log`, and `processed_notifications`. `notification` stores the recipient, notification type, channel, message, and delivery status; `otp_challenge` stores only a hashed code plus expiry, attempt count, and consumed state; `change_log` stores append-only audit rows scoped by organization and correlation id; and `processed_notifications` records the Kafka coordinate `(topic, partition, offset)` of every record already handled, which is what makes at-least-once delivery safe to consume. These tables are not shared because delivery state, OTP security controls, and notification audit history must remain local to the service and independent of other bounded contexts.
 
 ## Key design decisions (3-5)
-For each:
+
 - Decision: Store only a hash of the OTP code.
 - Why: The service never persists the raw passcode, so a database leak cannot reveal active verification codes.
 - Alternative considered: Storing the OTP in plaintext for easier verification.
@@ -42,6 +41,12 @@ For each:
 - Alternative considered: Relying only on application logs.
 - Trade-off accepted: Extra storage, but much better operational traceability.
 
+
+- Decision: Consume payment events asynchronously rather than having payment-service call this service.
+- Why: The notification concern stays entirely out of producer code — payment-service publishes for domain reasons and knows nothing about alerts. It also means a notification outage cannot fail a payment.
+- Alternative considered: A synchronous REST call from payment-service when a payment settles.
+- Trade-off accepted: Delivery is eventually consistent and at-least-once, so every record is checked against `processed_notifications` before anything is sent; the check and the send share one transaction.
+
 ## Where the interesting code lives
 - Domain logic: notification-service/src/main/java/com/bank/notification/domain/Notification.java, notification-service/src/main/java/com/bank/notification/domain/OtpChallenge.java, notification-service/src/main/java/com/bank/notification/domain/ChangeLog.java
 - Adapters: notification-service/src/main/java/com/bank/notification/adapter/in/web/NotificationController.java, notification-service/src/main/java/com/bank/notification/adapter/out/sender/LoggingSenderAdapter.java, notification-service/src/main/java/com/bank/notification/adapter/out/persistence/*
@@ -56,4 +61,6 @@ For each:
 - Add templating and localization if customer-facing copy needs to vary by language or channel.
 - Replace the logging sender with real SMS/email/push adapters.
 - Add metrics around OTP issuance, verification success, and delivery failures.
-```
+- Only `payment.events` is consumed. ADR-014 also names `account.events`, `card.events` and `customer.events`, which have no producer or consumer yet.
+- `processed_notifications` grows without bound; it needs a retention job once volume is real.
+- A record that cannot be parsed is recorded as handled and skipped so it cannot block its partition. There is no dead-letter topic — the record is logged at ERROR and otherwise dropped.

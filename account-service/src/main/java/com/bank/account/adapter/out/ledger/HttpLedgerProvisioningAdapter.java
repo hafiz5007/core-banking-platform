@@ -4,10 +4,13 @@ import com.bank.account.application.port.LedgerProvisioningPort;
 import java.util.Currency;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
+import com.bank.common.security.ServiceTokenIssuer;
+import com.bank.common.security.web.JwtPropagationInterceptor;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 
@@ -23,11 +26,22 @@ public class HttpLedgerProvisioningAdapter implements LedgerProvisioningPort {
 
     private static final Logger log = LoggerFactory.getLogger(HttpLedgerProvisioningAdapter.class);
 
+    private static final String LEDGER_AUDIENCE = "ledger-service";
+    private static final String SCOPE_LEDGER_WRITE = "ledger:write";
+
     private final RestClient restClient;
 
     public HttpLedgerProvisioningAdapter(RestClient.Builder builder,
-                                         @Value("${ledger.base-url:http://localhost:8083}") String baseUrl) {
-        this.restClient = builder.baseUrl(baseUrl).build();
+                                         @Value("${ledger.base-url:http://localhost:8083}") String baseUrl,
+                                         ObjectProvider<ServiceTokenIssuer> issuer) {
+        RestClient.Builder configured = builder.baseUrl(baseUrl);
+        // Carry this service's identity on the call when service auth is enabled (ADR-008).
+        ServiceTokenIssuer tokenIssuer = issuer.getIfAvailable();
+        if (tokenIssuer != null) {
+            configured = configured.requestInterceptor(new JwtPropagationInterceptor(
+                    tokenIssuer, LEDGER_AUDIENCE, SCOPE_LEDGER_WRITE));
+        }
+        this.restClient = configured.build();
     }
 
     @Override

@@ -6,34 +6,91 @@ services:
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_DB: banking
-      POSTGRES_USER: banking
-      POSTGRES_PASSWORD: banking
+      POSTGRES_DB: ${CBP_POSTGRES_DB:-banking}
+      POSTGRES_USER: ${CBP_POSTGRES_USER:-banking}
+      POSTGRES_PASSWORD: ${CBP_POSTGRES_PASSWORD:-banking}
     ports:
       - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U banking -d banking"]
+      test: ["CMD-SHELL", "pg_isready -U ${CBP_POSTGRES_USER:-banking} -d ${CBP_POSTGRES_DB:-banking}"]
       interval: 5s
       timeout: 5s
       retries: 10
     volumes:
       - pgdata:/var/lib/postgresql/data
 
+  # Event backbone in KRaft mode — no ZooKeeper (ADR-005).
+  kafka:
+    image: apache/kafka:3.7.2
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@kafka:9093"
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      # Topics are created deliberately by kafka-init below, never implicitly by a typo.
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+      CLUSTER_ID: "Mv7sTAzST0OX5LxfPE2Apg"
+    ports:
+      - "9092:9092"
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+
+  # One-shot: creates the topics the platform publishes to, then exits.
+  kafka-init:
+    image: apache/kafka:3.7.2
+    depends_on:
+      kafka:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    # The four domain topics from ADR-014. Only payment.events has a producer and a consumer today;
+    # the other three are declared so the estate's topic set is explicit and reviewable rather than
+    # appearing by accident on first publish (auto-create is deliberately off).
+    # A literal block inside a single list item: one argument to sh -c, newlines preserved.
+    command:
+      - |
+        set -e
+        for t in "${CBP_KAFKA_TOPIC_PAYMENT_EVENTS:-payment.events}" \
+                 "${CBP_KAFKA_TOPIC_ACCOUNT_EVENTS:-account.events}" \
+                 "${CBP_KAFKA_TOPIC_CARD_EVENTS:-card.events}" \
+                 "${CBP_KAFKA_TOPIC_CUSTOMER_EVENTS:-customer.events}"; do
+          /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 \
+            --create --if-not-exists --topic "$$t" --partitions 3 --replication-factor 1
+        done
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --list
+        echo 'topics ready'
+    restart: "no"
+
   account-service:
     build:
       context: .
       dockerfile: account-service/Dockerfile
     environment:
-      DB_URL: jdbc:postgresql://postgres:5432/banking
-      DB_USER: banking
-      DB_PASSWORD: banking
-      SERVER_PORT: 8081
-      LEDGER_BASE_URL: http://ledger-service:8083
-      LEDGER_PROVISIONING: http
+      CBP_DB_URL: jdbc:postgresql://postgres:5432/${CBP_POSTGRES_DB:-banking}
+      CBP_DB_USER: ${CBP_POSTGRES_USER:-banking}
+      CBP_DB_PASSWORD: ${CBP_POSTGRES_PASSWORD:-banking}
+      # Service auth (ADR-008); values come from .env — see .env.example.
+      CBP_SERVICE_AUTH_ENABLED: ${CBP_SERVICE_AUTH_ENABLED:-false}
+      CBP_SERVICE_AUTH_SECRET: ${CBP_SERVICE_AUTH_SECRET:-}
+      CBP_SERVICE_AUTH_ISSUER: ${CBP_SERVICE_AUTH_ISSUER:-core-banking-platform}
+      CBP_SERVICE_AUTH_TOKEN_TTL: ${CBP_SERVICE_AUTH_TOKEN_TTL:-60}
+      CBP_SERVICE_AUTH_CLOCK_SKEW: ${CBP_SERVICE_AUTH_CLOCK_SKEW:-30}
+      CBP_SERVER_PORT: 8081
+      CBP_LEDGER_BASE_URL: http://ledger-service:8083
+      CBP_LEDGER_PROVISIONING: http
       # Post account debits to ledger-service over gRPC (ADR-007).
-      LEDGER_POSTING: grpc
-      LEDGER_GRPC_TARGET: ledger-service:9090
-      LEDGER_SETTLEMENT_ACCOUNT: SETTLEMENT
+      CBP_LEDGER_POSTING: grpc
+      CBP_LEDGER_GRPC_TARGET: ledger-service:9090
+      CBP_LEDGER_SETTLEMENT_ACCOUNT: SETTLEMENT
     ports:
       - "8081:8081"
     depends_on:
@@ -47,10 +104,10 @@ services:
       context: .
       dockerfile: customer-service/Dockerfile
     environment:
-      DB_URL: jdbc:postgresql://postgres:5432/banking
-      DB_USER: banking
-      DB_PASSWORD: banking
-      SERVER_PORT: 8082
+      CBP_DB_URL: jdbc:postgresql://postgres:5432/${CBP_POSTGRES_DB:-banking}
+      CBP_DB_USER: ${CBP_POSTGRES_USER:-banking}
+      CBP_DB_PASSWORD: ${CBP_POSTGRES_PASSWORD:-banking}
+      CBP_SERVER_PORT: 8082
     ports:
       - "8082:8082"
     depends_on:
@@ -62,13 +119,19 @@ services:
       context: .
       dockerfile: ledger-service/Dockerfile
     environment:
-      DB_URL: jdbc:postgresql://postgres:5432/banking
-      DB_USER: banking
-      DB_PASSWORD: banking
-      SERVER_PORT: 8083
+      CBP_DB_URL: jdbc:postgresql://postgres:5432/${CBP_POSTGRES_DB:-banking}
+      CBP_DB_USER: ${CBP_POSTGRES_USER:-banking}
+      CBP_DB_PASSWORD: ${CBP_POSTGRES_PASSWORD:-banking}
+      # Service auth (ADR-008); values come from .env — see .env.example.
+      CBP_SERVICE_AUTH_ENABLED: ${CBP_SERVICE_AUTH_ENABLED:-false}
+      CBP_SERVICE_AUTH_SECRET: ${CBP_SERVICE_AUTH_SECRET:-}
+      CBP_SERVICE_AUTH_ISSUER: ${CBP_SERVICE_AUTH_ISSUER:-core-banking-platform}
+      CBP_SERVICE_AUTH_TOKEN_TTL: ${CBP_SERVICE_AUTH_TOKEN_TTL:-60}
+      CBP_SERVICE_AUTH_CLOCK_SKEW: ${CBP_SERVICE_AUTH_CLOCK_SKEW:-30}
+      CBP_SERVER_PORT: 8083
       # gRPC posting endpoint consumed by account-service (ADR-007).
-      GRPC_SERVER_ENABLED: "true"
-      GRPC_PORT: 9090
+      CBP_GRPC_SERVER_ENABLED: "true"
+      CBP_GRPC_PORT: 9090
     ports:
       - "8083:8083"
       - "9090:9090"
@@ -81,13 +144,23 @@ services:
       context: .
       dockerfile: payment-service/Dockerfile
     environment:
-      DB_URL: jdbc:postgresql://postgres:5432/banking
-      DB_USER: banking
-      DB_PASSWORD: banking
-      SERVER_PORT: 8084
-      LEDGER_BASE_URL: http://ledger-service:8083
-      SCREENING_ADAPTER: risk-service
-      RISK_BASE_URL: http://risk-aml-service:8088
+      CBP_DB_URL: jdbc:postgresql://postgres:5432/${CBP_POSTGRES_DB:-banking}
+      CBP_DB_USER: ${CBP_POSTGRES_USER:-banking}
+      CBP_DB_PASSWORD: ${CBP_POSTGRES_PASSWORD:-banking}
+      # Event backbone (ADR-005); see .env.example.
+      CBP_KAFKA_ENABLED: ${CBP_KAFKA_ENABLED:-false}
+      CBP_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      CBP_KAFKA_TOPIC_PAYMENT_EVENTS: ${CBP_KAFKA_TOPIC_PAYMENT_EVENTS:-payment.events}
+      # Service auth (ADR-008); values come from .env — see .env.example.
+      CBP_SERVICE_AUTH_ENABLED: ${CBP_SERVICE_AUTH_ENABLED:-false}
+      CBP_SERVICE_AUTH_SECRET: ${CBP_SERVICE_AUTH_SECRET:-}
+      CBP_SERVICE_AUTH_ISSUER: ${CBP_SERVICE_AUTH_ISSUER:-core-banking-platform}
+      CBP_SERVICE_AUTH_TOKEN_TTL: ${CBP_SERVICE_AUTH_TOKEN_TTL:-60}
+      CBP_SERVICE_AUTH_CLOCK_SKEW: ${CBP_SERVICE_AUTH_CLOCK_SKEW:-30}
+      CBP_SERVER_PORT: 8084
+      CBP_LEDGER_BASE_URL: http://ledger-service:8083
+      CBP_SCREENING_ADAPTER: risk-service
+      CBP_RISK_BASE_URL: http://risk-aml-service:8088
     ports:
       - "8084:8084"
     depends_on:
@@ -103,11 +176,17 @@ services:
       context: .
       dockerfile: interest-fee-service/Dockerfile
     environment:
-      DB_URL: jdbc:postgresql://postgres:5432/banking
-      DB_USER: banking
-      DB_PASSWORD: banking
-      SERVER_PORT: 8085
-      LEDGER_BASE_URL: http://ledger-service:8083
+      CBP_DB_URL: jdbc:postgresql://postgres:5432/${CBP_POSTGRES_DB:-banking}
+      CBP_DB_USER: ${CBP_POSTGRES_USER:-banking}
+      CBP_DB_PASSWORD: ${CBP_POSTGRES_PASSWORD:-banking}
+      # Service auth (ADR-008); values come from .env — see .env.example.
+      CBP_SERVICE_AUTH_ENABLED: ${CBP_SERVICE_AUTH_ENABLED:-false}
+      CBP_SERVICE_AUTH_SECRET: ${CBP_SERVICE_AUTH_SECRET:-}
+      CBP_SERVICE_AUTH_ISSUER: ${CBP_SERVICE_AUTH_ISSUER:-core-banking-platform}
+      CBP_SERVICE_AUTH_TOKEN_TTL: ${CBP_SERVICE_AUTH_TOKEN_TTL:-60}
+      CBP_SERVICE_AUTH_CLOCK_SKEW: ${CBP_SERVICE_AUTH_CLOCK_SKEW:-30}
+      CBP_SERVER_PORT: 8085
+      CBP_LEDGER_BASE_URL: http://ledger-service:8083
     ports:
       - "8085:8085"
     depends_on:
@@ -121,11 +200,17 @@ services:
       context: .
       dockerfile: card-service/Dockerfile
     environment:
-      DB_URL: jdbc:postgresql://postgres:5432/banking
-      DB_USER: banking
-      DB_PASSWORD: banking
-      SERVER_PORT: 8086
-      LEDGER_BASE_URL: http://ledger-service:8083
+      CBP_DB_URL: jdbc:postgresql://postgres:5432/${CBP_POSTGRES_DB:-banking}
+      CBP_DB_USER: ${CBP_POSTGRES_USER:-banking}
+      CBP_DB_PASSWORD: ${CBP_POSTGRES_PASSWORD:-banking}
+      # Service auth (ADR-008); values come from .env — see .env.example.
+      CBP_SERVICE_AUTH_ENABLED: ${CBP_SERVICE_AUTH_ENABLED:-false}
+      CBP_SERVICE_AUTH_SECRET: ${CBP_SERVICE_AUTH_SECRET:-}
+      CBP_SERVICE_AUTH_ISSUER: ${CBP_SERVICE_AUTH_ISSUER:-core-banking-platform}
+      CBP_SERVICE_AUTH_TOKEN_TTL: ${CBP_SERVICE_AUTH_TOKEN_TTL:-60}
+      CBP_SERVICE_AUTH_CLOCK_SKEW: ${CBP_SERVICE_AUTH_CLOCK_SKEW:-30}
+      CBP_SERVER_PORT: 8086
+      CBP_LEDGER_BASE_URL: http://ledger-service:8083
     ports:
       - "8086:8086"
     depends_on:
@@ -139,10 +224,14 @@ services:
       context: .
       dockerfile: notification-service/Dockerfile
     environment:
-      DB_URL: jdbc:postgresql://postgres:5432/banking
-      DB_USER: banking
-      DB_PASSWORD: banking
-      SERVER_PORT: 8087
+      CBP_DB_URL: jdbc:postgresql://postgres:5432/${CBP_POSTGRES_DB:-banking}
+      CBP_DB_USER: ${CBP_POSTGRES_USER:-banking}
+      CBP_DB_PASSWORD: ${CBP_POSTGRES_PASSWORD:-banking}
+      # Event backbone (ADR-005); see .env.example.
+      CBP_KAFKA_ENABLED: ${CBP_KAFKA_ENABLED:-false}
+      CBP_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      CBP_KAFKA_TOPIC_PAYMENT_EVENTS: ${CBP_KAFKA_TOPIC_PAYMENT_EVENTS:-payment.events}
+      CBP_SERVER_PORT: 8087
     ports:
       - "8087:8087"
     depends_on:
@@ -154,10 +243,16 @@ services:
       context: .
       dockerfile: risk-aml-service/Dockerfile
     environment:
-      DB_URL: jdbc:postgresql://postgres:5432/banking
-      DB_USER: banking
-      DB_PASSWORD: banking
-      SERVER_PORT: 8088
+      CBP_DB_URL: jdbc:postgresql://postgres:5432/${CBP_POSTGRES_DB:-banking}
+      CBP_DB_USER: ${CBP_POSTGRES_USER:-banking}
+      CBP_DB_PASSWORD: ${CBP_POSTGRES_PASSWORD:-banking}
+      # Service auth (ADR-008); values come from .env — see .env.example.
+      CBP_SERVICE_AUTH_ENABLED: ${CBP_SERVICE_AUTH_ENABLED:-false}
+      CBP_SERVICE_AUTH_SECRET: ${CBP_SERVICE_AUTH_SECRET:-}
+      CBP_SERVICE_AUTH_ISSUER: ${CBP_SERVICE_AUTH_ISSUER:-core-banking-platform}
+      CBP_SERVICE_AUTH_TOKEN_TTL: ${CBP_SERVICE_AUTH_TOKEN_TTL:-60}
+      CBP_SERVICE_AUTH_CLOCK_SKEW: ${CBP_SERVICE_AUTH_CLOCK_SKEW:-30}
+      CBP_SERVER_PORT: 8088
     ports:
       - "8088:8088"
     depends_on:
@@ -169,10 +264,10 @@ services:
       context: .
       dockerfile: admin-service/Dockerfile
     environment:
-      DB_URL: jdbc:postgresql://postgres:5432/banking
-      DB_USER: banking
-      DB_PASSWORD: banking
-      SERVER_PORT: 8089
+      CBP_DB_URL: jdbc:postgresql://postgres:5432/${CBP_POSTGRES_DB:-banking}
+      CBP_DB_USER: ${CBP_POSTGRES_USER:-banking}
+      CBP_DB_PASSWORD: ${CBP_POSTGRES_PASSWORD:-banking}
+      CBP_SERVER_PORT: 8089
     ports:
       - "8089:8089"
     depends_on:
@@ -184,10 +279,10 @@ services:
       context: .
       dockerfile: reporting-service/Dockerfile
     environment:
-      DB_URL: jdbc:postgresql://postgres:5432/banking
-      DB_USER: banking
-      DB_PASSWORD: banking
-      SERVER_PORT: 8090
+      CBP_DB_URL: jdbc:postgresql://postgres:5432/${CBP_POSTGRES_DB:-banking}
+      CBP_DB_USER: ${CBP_POSTGRES_USER:-banking}
+      CBP_DB_PASSWORD: ${CBP_POSTGRES_PASSWORD:-banking}
+      CBP_SERVER_PORT: 8090
     ports:
       - "8090:8090"
     depends_on:
@@ -199,17 +294,21 @@ services:
       context: .
       dockerfile: api-gateway/Dockerfile
     environment:
-      SERVER_PORT: 8080
-      ACCOUNT_URI: http://account-service:8081
-      CUSTOMER_URI: http://customer-service:8082
-      LEDGER_URI: http://ledger-service:8083
-      PAYMENT_URI: http://payment-service:8084
-      INTEREST_URI: http://interest-fee-service:8085
-      CARD_URI: http://card-service:8086
-      NOTIFICATION_URI: http://notification-service:8087
-      RISK_URI: http://risk-aml-service:8088
-      ADMIN_URI: http://admin-service:8089
-      REPORTING_URI: http://reporting-service:8090
+      CBP_SERVER_PORT: 8080
+      # Edge auth (see .env.example); empty leaves the gateway permitting all requests.
+      CBP_GATEWAY_SECURITY_ENABLED: ${CBP_GATEWAY_SECURITY_ENABLED:-false}
+      CBP_GATEWAY_JWT_ISSUER_URI: ${CBP_GATEWAY_JWT_ISSUER_URI:-}
+      CBP_GATEWAY_RATE_LIMIT: ${CBP_GATEWAY_RATE_LIMIT:-120}
+      CBP_ACCOUNT_URI: http://account-service:8081
+      CBP_CUSTOMER_URI: http://customer-service:8082
+      CBP_LEDGER_URI: http://ledger-service:8083
+      CBP_PAYMENT_URI: http://payment-service:8084
+      CBP_INTEREST_URI: http://interest-fee-service:8085
+      CBP_CARD_URI: http://card-service:8086
+      CBP_NOTIFICATION_URI: http://notification-service:8087
+      CBP_RISK_URI: http://risk-aml-service:8088
+      CBP_ADMIN_URI: http://admin-service:8089
+      CBP_REPORTING_URI: http://reporting-service:8090
     ports:
       - "8080:8080"
     depends_on:

@@ -1,9 +1,9 @@
 # Multi-stage build for the ledger-service.
 FROM maven:3.9-eclipse-temurin-21 AS build
 WORKDIR /workspace
-COPY pom.xml .
-COPY common-lib common-lib
-COPY ledger-service ledger-service
+# The parent pom declares every module, so Maven needs the whole reactor present even to
+# build one service. .dockerignore keeps the context small.
+COPY . .
 RUN mvn -q -pl ledger-service -am -DskipTests package
 
 FROM eclipse-temurin:21-jre

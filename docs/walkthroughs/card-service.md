@@ -2,7 +2,6 @@
 # Walkthrough: card-service
 
 ## Purpose (2 sentences)
-What business capability does it own?
 Card-service owns debit card issuance, usage controls, real-time authorization, and settlement reconciliation. It keeps PCI scope small by storing only a card token and last four digits, while settlement posts the financial movement to the ledger.
 
 ## Public API surface
@@ -22,7 +21,7 @@ Card-service owns debit card issuance, usage controls, real-time authorization, 
 The service owns four tables: `card`, `card_authorization`, `change_log`, and the repository-backed ledger adapter does not persist card data itself. `card` stores the tokenized card identity, organization, account code, available balance, status, usage controls, and per-transaction limit; `card_authorization` stores each authorization request and its outcome; and `change_log` is an append-only audit record for card lifecycle changes. These tables are not shared because card usage rules, holds, settlement state, and audit history must stay consistent inside one transactional bounded context.
 
 ## Key design decisions (3-5)
-For each:
+
 - Decision: Never store the full PAN.
 - Why: The card aggregate stores only a token and last four digits, which keeps PCI scope smaller.
 - Alternative considered: Persisting the full card number for convenience.
@@ -62,4 +61,3 @@ For each:
 - Add dedicated tests for each control combination and decline reason.
 - Replace the demo token/PAN handling with a real tokenization integration if this were production-bound.
 - Expand reconciliation reporting if scheme processing needs richer exception handling.
-```

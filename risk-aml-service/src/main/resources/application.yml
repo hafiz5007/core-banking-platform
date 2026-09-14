@@ -2,9 +2,9 @@ spring:
   application:
     name: risk-aml-service
   datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:5432/banking}
-    username: ${DB_USER:banking}
-    password: ${DB_PASSWORD:banking}
+    url: ${CBP_DB_URL:jdbc:postgresql://localhost:5432/banking}
+    username: ${CBP_DB_USER:banking}
+    password: ${CBP_DB_PASSWORD:banking}
   jpa:
     hibernate:
       ddl-auto: validate
@@ -22,10 +22,10 @@ spring:
     create-schemas: true
 
 server:
-  port: ${SERVER_PORT:8088}
+  port: ${CBP_SERVER_PORT:8088}
 
 aml:
-  large-amount-threshold: ${AML_LARGE_AMOUNT_THRESHOLD:10000}
+  large-amount-threshold: ${CBP_AML_LARGE_AMOUNT_THRESHOLD:10000}
 
 management:
   endpoints:
@@ -47,3 +47,16 @@ springdoc:
 logging:
   pattern:
     level: "%5p [${spring.application.name},correlationId=%X{correlationId:-n/a}]"
+
+# Service-to-service authentication (ADR-008).
+#  enabled         — this service mints tokens for its outbound calls
+#  require-inbound — this service refuses inbound calls that carry no acceptable token
+# No secret is committed: SERVICE_AUTH_SECRET (>= 32 bytes) comes from the environment. See .env.example.
+service-auth:
+  enabled: ${CBP_SERVICE_AUTH_ENABLED:false}
+  require-inbound: ${CBP_SERVICE_AUTH_REQUIRE_INBOUND:true}
+  service-name: risk-aml-service
+  secret: ${CBP_SERVICE_AUTH_SECRET:}
+  issuer: ${CBP_SERVICE_AUTH_ISSUER:core-banking-platform}
+  token-ttl-seconds: ${CBP_SERVICE_AUTH_TOKEN_TTL:60}
+  clock-skew-seconds: ${CBP_SERVICE_AUTH_CLOCK_SKEW:30}

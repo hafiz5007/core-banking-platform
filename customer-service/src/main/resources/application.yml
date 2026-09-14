@@ -2,9 +2,9 @@ spring:
   application:
     name: customer-service
   datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:5432/banking}
-    username: ${DB_USER:banking}
-    password: ${DB_PASSWORD:banking}
+    url: ${CBP_DB_URL:jdbc:postgresql://localhost:5432/banking}
+    username: ${CBP_DB_USER:banking}
+    password: ${CBP_DB_PASSWORD:banking}
   jpa:
     hibernate:
       ddl-auto: validate
@@ -22,7 +22,7 @@ spring:
     create-schemas: true
 
 server:
-  port: ${SERVER_PORT:8082}
+  port: ${CBP_SERVER_PORT:8082}
 
 management:
   endpoints:

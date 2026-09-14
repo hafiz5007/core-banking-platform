@@ -1,21 +1,63 @@
-# Core Banking & Payment System
+# Core Banking Platform
 
-A core banking platform with integrated domestic and overseas payments, built as Java / Spring Boot
-microservices. This repository currently contains the **Sprint 0 foundations and walking skeleton**.
+**A reference architecture for a compliant, scalable retail banking system on the JVM.**
+Eleven Spring Boot services and two shared libraries — double-entry ledger, ISO 20022 payments,
+KYC/AML screening, cards, and an API gateway — wired together and runnable with one command.
 
-The full requirements, engineering guideline, and sprint-by-sprint delivery plan are in the PDF
-documents at the root of this folder:
+Java 21 · Spring Boot 3.4 · PostgreSQL 16 · Kafka (KRaft) · gRPC · JWT service-to-service auth · Docker · Testcontainers
 
-- `01_Core_Banking_Project_Requirements.pdf`
-- `02_Developer_Guideline_and_Sprint_Plan.pdf`
-- `03_Detailed_Developer_Delivery_Plan.pdf`
+[![CI](https://github.com/hafiz5007/core-banking-platform/actions/workflows/ci.yml/badge.svg)](https://github.com/hafiz5007/core-banking-platform/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Java 21](https://img.shields.io/badge/Java-21-orange.svg)](https://openjdk.org/projects/jdk/21/)
 
-## What's implemented so far
+## Why this exists
+
+Most banking portfolio projects show one service in isolation. This one shows the parts that only
+become interesting when services have to agree with each other:
+
+- **A double-entry ledger that refuses to go out of balance** — immutable journal entries,
+  idempotent replay, reversal instead of deletion, and a trial-balance endpoint that proves it.
+- **Saga-based payments with compensation** — when a clearing scheme or SWIFT rejects a payment,
+  the ledger posting is reversed rather than silently orphaned.
+- **Transactional outbox → Kafka** for effectively-once event delivery, so a committed database
+  change and its published event can never disagree.
+- **gRPC on the hot path** between account and ledger, with **JWT service-to-service auth** over
+  both REST and gRPC.
+- **Every integration behind a port** with a working stub, switched by configuration — the platform
+  boots and its tests run with no external dependency at all.
+
+Every architectural decision is written up as an ADR. Every service has a walkthrough. The
+remaining work is tracked in the open rather than hidden.
+
+## Quickstart
+
+```bash
+git clone https://github.com/hafiz5007/core-banking-platform.git
+cd core-banking-platform
+cp .env.example .env
+docker compose up --build
+```
+
+Then:
+
+| What | Where |
+|------|-------|
+| API gateway (front door) | `http://localhost:8080/api/v1/...` |
+| Swagger UI, per service | `http://localhost:<port>/swagger-ui.html` |
+| Health | `http://localhost:<port>/actuator/health` |
+| Prometheus metrics | `http://localhost:<port>/actuator/prometheus` |
+
+Requires **JDK 21**, **Maven 3.9+** and **Docker**. Full build, run, debug, test and publish
+commands are in **[`docs/development-guidance.md`](docs/development-guidance.md)**; the debugging
+and testing playbook is in [`docs/DEBUG_TESTING.md`](docs/DEBUG_TESTING.md).
+
+## What's built
+
 
 | Module | Sprint | Purpose |
 |--------|--------|---------|
 | `common-lib` | 0 | Cross-cutting building blocks: the `Money` value object, problem+json error model, and the correlation-id filter. |
-| `account-service` | 0 | Walking-skeleton service proving the full path: HTTP → service → PostgreSQL → traced/logged response. Opens and reads deposit accounts. Port 8081. |
+| `account-service` | 0, 2 | Accounts and product catalogue, holders and mandates (joint accounts), holds and limits, per-record change log. Provisions GL accounts and posts debits to the ledger over gRPC. Port 8081. |
 | `customer-service` | 1 | Customer onboarding with KYC verification, sanctions/PEP screening, risk rating and consent capture. External KYC/screening behind ports with swappable stub adapters. Port 8082. |
 | `ledger-service` | 3 | Authoritative double-entry general ledger: chart of accounts, balanced atomic postings, idempotent replay, immutable entries with reversal, and a trial-balance reconciliation endpoint. Port 8083. |
 | `payment-service` | 4–6 | Canonical payment engine with a per-rail strategy behind a routing engine. **Intrabank** book transfers (S4), **domestic clearing** — instant / RTGS / ACH via ISO 20022 pacs.008 (S5), and **cross-border** over SWIFT with **FX conversion** and **nostro** settlement (S6). Validates, screens, posts to the ledger, settles, and runs a saga that **compensates** (reverses the posting) on failure. Idempotent initiation, returns/recalls, transactional outbox. Port 8084. |
@@ -26,57 +68,73 @@ documents at the root of this folder:
 | `admin-service` | 10 | Back-office: RBAC roles/permissions, maker-checker (four-eyes) approval workflow, immutable audit trail. Port 8089. |
 | `reporting-service` | 10 | Operational & regulatory reporting from a metrics projection (kept off the transactional path). Port 8090. |
 | `api-gateway` | 9 | External front door (Spring Cloud Gateway MVC): routes to all services, OAuth2 resource-server security (JWT), and per-client rate limiting. Port 8080. |
+| `ledger-grpc-api` | 3 | The gRPC/protobuf contract for ledger posting, in its own module so neither side depends on the other's code — only on the contract. |
 
 **Sprints 11–12 (hardening, DR, certification, go-live)** are delivery activities, not new code — see `docs/GO_LIVE_READINESS.md` for the release gate, hardening checklist, DR/BCP drill, and cutover runbook.
 
-**Remaining engineering work** — the prioritized developer backlog (build/verify, stub→real
-adapters, security rollout, NFR/observability, go-live tasks) is in `docs/PENDING_TASKS.md`. Service
-call graph and the security model are in `docs/SERVICE_WIRING.md`. Key decisions are recorded as
-ADRs in `docs/adr/` — **ADR-001** (auditing & change history) and **ADR-002** (organization /
-multi-tenancy). A reference implementation of both (tenant context + `organization_id` +
-`change_log`) is in `common-lib` and `account-service`.
 
-`customer-service` also hosts **Open Banking TPP consent** (scoped, time-bound, revocable, SCA-authorised) and `payment-service` adds **P2P-by-alias** and **bill pay** on top of the engine.
+## Architecture at a glance
 
-Each service has its own PostgreSQL schema (`account`, `customer`, `ledger`, `payment`, `interest`, `card`, `notification`, `risk`, `admin`, `reporting`) so migrations never collide. The `api-gateway` is stateless.
+```
+                        external clients
+                               │  Bearer JWT (when edge security is on)
+                               ▼
+                     ┌───────────────────┐
+                     │  api-gateway 8080 │  rate limit → route by path
+                     └─────────┬─────────┘
+                               │
+  ┌──────────┬──────────┬──────┴─────┬───────────┬────────────┬──────────┐
+  ▼          ▼          ▼            ▼           ▼            ▼          ▼
+customer  account    payment      card      interest-fee  risk-aml   admin
+ 8082      8081       8084        8086         8085         8088      8089
+             │  gRPC 9090  │ HTTP      │ HTTP      │ HTTP        ▲
+             │  (posting)  │ (entries) │           │             │ screen
+             └────────►  ledger-service 8083  ◄────┘─────────────┘
+                        (authoritative double-entry GL)
 
-The walking skeleton demonstrates the patterns every later service must follow: exact-decimal money
-(never floating point), versioned Flyway migrations, RFC 9457 error responses, correlation-id
-tracing, actuator health/metrics, OpenAPI docs, and integration tests against a real database via
-Testcontainers.
-
-## Prerequisites
-
-- **JDK 21** (LTS)
-- **Maven 3.9+**
-- **Docker** (for `docker compose` and for Testcontainers-based integration tests)
-
-## Build & test
-
-```bash
-# Compile everything, run unit + integration tests (starts a throwaway PostgreSQL via Testcontainers)
-mvn verify
-
-# Compile only, skip tests
-mvn -DskipTests package
+  outbox → Kafka → notification-service 8087        reporting-service 8090
+  all services ──► PostgreSQL 16 (one instance, a private schema each)
 ```
 
-> Note: the integration tests require Docker to be running.
+Every service uses the same **hexagonal layout** — `domain/` (no framework imports),
+`application/` with outbound `port/` interfaces, and `adapter/in|out/` implementations chosen by
+configuration. `common-lib` supplies the `Money` type, the RFC 9457 error model, correlation-id
+propagation, tenant context and the service-auth interceptors.
 
-## Run locally
+## Design decisions (ADRs)
 
-```bash
-# Brings up PostgreSQL + account-service
-docker compose up --build
-```
+Seventeen decision records live in [`docs/ADR/`](docs/ADR/). The ones worth reading first:
 
-Then (account-service on 8081, customer-service on 8082):
+- [ADR-000 — Architecture overview](docs/ADR/ADR-000-architecture-overview.md) — scope, non-goals, and what was deliberately left out
+- [ADR-003 — Double-entry ledger](docs/ADR/ADR-003-ledger-double-entry.md) — immutable journal, the balancing invariant
+- [ADR-004 — Transactional outbox](docs/ADR/ADR-004-outbox-pattern.md) — effectively-once event delivery
+- [ADR-005 — Kafka in KRaft mode](docs/ADR/ADR-005-kafka-kraft.md) — event backbone, no ZooKeeper
+- [ADR-007 — gRPC account ↔ ledger](docs/ADR/ADR-007-grpc-account-ledger.md) — why not REST on the hot path
+- [ADR-008 — JWT service-to-service auth](docs/ADR/ADR-008-jwt-service-auth.md) — east-west security over REST and gRPC
+- [ADR-010 — The Money type](docs/ADR/ADR-010-money-type.md) — why `BigDecimal` alone is not enough
+- [ADR-012 — ISO 20022 payments](docs/ADR/ADR-012-iso20022-payments.md) — pacs.008 on domestic and cross-border rails
 
-- Swagger UI: `http://localhost:8081/swagger-ui.html` and `http://localhost:8082/swagger-ui.html`
-- Health: `http://localhost:8081/actuator/health`, `http://localhost:8082/actuator/health`
-- Metrics (Prometheus): `.../actuator/prometheus`
+## Service walkthroughs
 
-### Try it
+Each service has a walkthrough covering what it owns, its API surface, its data model, and the
+design decisions behind it — see [`docs/walkthroughs/`](docs/walkthroughs/):
+
+[common-lib](docs/walkthroughs/00-common-lib.md) ·
+[account](docs/walkthroughs/account-service.md) ·
+[customer](docs/walkthroughs/customer-service.md) ·
+[ledger](docs/walkthroughs/ledger-service.md) ·
+[payment](docs/walkthroughs/payment-service.md) ·
+[card](docs/walkthroughs/card-service.md) ·
+[interest-fee](docs/walkthroughs/interest-fee-service.md) ·
+[notification](docs/walkthroughs/notification-service.md) ·
+[risk-aml](docs/walkthroughs/risk-aml-service.md) ·
+[admin](docs/walkthroughs/admin-service.md) ·
+[reporting](docs/walkthroughs/report-service.md)
+
+Service call graph and the security model: [`docs/SERVICE_WIRING.md`](docs/SERVICE_WIRING.md) and
+[`docs/SERVICE_DEPENDENCIES.md`](docs/SERVICE_DEPENDENCIES.md).
+
+## Try it
 
 ```bash
 # Onboard a customer (customer-service)
@@ -147,20 +205,45 @@ curl -s -X POST http://localhost:8084/api/v1/payments -H 'Content-Type: applicat
 # is rejected by SWIFT -> the payment is COMPENSATED (reversed).
 ```
 
+
+## Testing the API
+
+One Postman collection per service in `postman/`, covering every REST endpoint, plus environments
+for local, gateway and sandbox. See `postman/README.md`.
+
+- **Releasing to a test server:** `docs/DEPLOYMENT_SANDBOX.md` — what sandbox mode means here, how
+  to switch every feature on, how to prove the switches took effect, and what still stops it being
+  production.
+- **Service dependencies, step by step:** `docs/SERVICE_DEPENDENCIES.md` - which service calls
+  which, how to verify each hop, debugging with or without Docker, and seeding test data that
+  survives restarts.
+- **Debugging and testing:** `docs/DEBUG_TESTING.md` — running the suites, reading the reports,
+  tracing a request by correlation id, attaching a debugger, and the traps this codebase sets.
+
+
 ## Project layout
 
 ```
 banking-platform-parent (pom)
-├── common-lib                 # shared library (Money, errors, web filters)
-│   └── src/main/java/com/bank/common/{money,error,web}
-└── account-service            # walking-skeleton microservice (hexagonal layout)
-    └── src/main/java/com/bank/account/
-        ├── domain/            # Account aggregate, enums (no framework)
-        ├── application/       # AccountService use-cases
-        ├── adapter/in/web/    # REST controllers, DTOs, error handler
-        ├── adapter/out/persistence/  # JPA repository
-        └── config/            # OpenAPI config
+├── common-lib              # Money, RFC 9457 errors, correlation id, tenant context, service auth
+├── ledger-grpc-api         # the .proto contract shared by account-service and ledger-service
+├── api-gateway             # Spring Cloud Gateway MVC — routing, edge auth, rate limiting
+└── <ten business services> # each laid out the same way:
+    └── src/main/java/com/bank/<service>/
+        ├── domain/         # aggregates and value objects — no framework imports
+        ├── application/    # use-cases
+        │   └── port/       # outbound interfaces (LedgerPort, ScreeningPort, …)
+        ├── adapter/
+        │   ├── in/web/     # REST controllers, DTOs, error handler
+        │   ├── in/scheduler/   # cron entry points (EOD, standing orders)
+        │   ├── out/persistence/# Spring Data JPA
+        │   └── out/<integration>/  # HTTP / gRPC / Kafka / stub adapters
+        └── config/
+    └── src/main/resources/db/migration/  # Flyway, forward-only
 ```
+
+The dependency direction is always inward: `domain` knows nothing of Spring or JPA, `application`
+depends on `domain` and its own ports, `adapter` depends on `application`. Never the reverse.
 
 ## Coding rules (enforced from day one)
 
@@ -168,28 +251,46 @@ banking-platform-parent (pom)
 - **The domain layer imports no framework** (no Spring/JPA in `domain/`).
 - **Every schema change is a Flyway migration** — forward-only, reviewed.
 - **No PII/PAN/secrets in logs**; every request carries a correlation id.
-- See `02_Developer_Guideline_and_Sprint_Plan.pdf` for the full standards.
+- **Integrations go behind a port** with a stub adapter, selected by configuration — never an `if` in business code.
+- **Anything that moves money is idempotent.** Same key, same result, no double posting.
+- The full engineering manual is [`docs/development-guidance.md`](docs/development-guidance.md).
 
-## Sprint status
 
-Sprints 0–10 are implemented as code; Sprints 11–12 are captured as the go-live readiness package
-(`docs/GO_LIVE_READINESS.md`). All services share the hexagonal structure and reuse `common-lib`.
+## What's next (the honest backlog)
 
-| Sprint | Deliverable |
-|--------|-------------|
-| 0 | Foundations, common-lib, walking skeleton (account-service) |
-| 1 | customer-service (onboarding, KYC, screening, consent) |
-| 2 | account/product lifecycle, holds, limits |
-| 3 | ledger-service (double-entry, postings, reversal, trial balance) |
-| 4 | payment-service core + intrabank + saga/compensation |
-| 5 | domestic clearing (instant / RTGS / ACH, ISO 20022) |
-| 6 | cross-border (SWIFT, FX, nostro) |
-| 7 | interest-fee-service (accrual, fees, EOD) |
-| 8 | card-service (issuance + authorization) |
-| 9 | notification-service (alerts, OTP, statements) |
-| 10 | risk-aml-service (monitoring, cases, SAR) |
-| 11–12 | hardening, DR, certification, go-live — see `docs/GO_LIVE_READINESS.md` |
+Nothing is hidden. This is a reference implementation, not a production bank, and the gap is
+documented rather than glossed over:
 
-Sprint 2 depth (product catalogue, mandates/joint accounts, limits) is implemented in
-`account-service`, and standing orders + direct debit are implemented in `payment-service`
-(`/api/v1/standing-orders`, `/api/v1/direct-debits`), both reusing the intrabank payment engine.
+- **Every external integration is a stub** — KYC, sanctions screening, clearing schemes, SWIFT, FX
+  rates, card networks, SMS/email. Each already sits behind a port, so swapping in a real client is
+  a configuration and adapter change, not a rewrite.
+- **Service-to-service auth uses a shared HMAC secret.** Fine for local and CI; production needs
+  RS256 + JWKS (ADR-008).
+- **Edge OAuth2 is off by default** so the platform runs without an identity provider.
+
+The prioritised backlog — **P0** (before any production use), **P1** (hardening), **P2**
+(enhancement) — is in [`docs/PENDING_TASKS.md`](docs/PENDING_TASKS.md). The release gate, hardening
+checklist, DR drill and cutover runbook are in
+[`docs/GO_LIVE_READINESS.md`](docs/GO_LIVE_READINESS.md).
+
+## Author
+
+Built by **S. M. Hafizur Rahman** — 16 years in engineering, currently Senior Software Engineer &
+Technical Lead at a UK FCA-regulated fintech, working on regulated financial systems, KYC/AML and
+distributed architecture.
+
+- GitHub: [@hafiz5007](https://github.com/hafiz5007)
+- LinkedIn: [hafizrahmanuk](https://www.linkedin.com/in/hafizrahmanuk)
+- Related work: [payments-ledger-demo](https://github.com/hafiz5007/payments-ledger-demo) ·
+  [kyc-screening-service](https://github.com/hafiz5007/kyc-screening-service) ·
+  [auth-dotnet](https://github.com/hafiz5007/auth-dotnet) ·
+  [uk-address-lookup-service](https://github.com/hafiz5007/uk-address-lookup-service)
+
+## Contributing
+
+Bug reports, ADR challenges and documentation fixes are welcome — see
+[CONTRIBUTING.md](CONTRIBUTING.md). Security matters: [SECURITY.md](SECURITY.md).
+
+## License
+
+[MIT](LICENSE) — use it, learn from it, break it, improve it.

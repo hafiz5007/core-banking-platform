@@ -58,6 +58,10 @@
         <protobuf.version>3.25.5</protobuf.version>
         <protobuf-maven-plugin.version>0.6.1</protobuf-maven-plugin.version>
         <os-maven-plugin.version>1.7.1</os-maven-plugin.version>
+        <!-- Service-to-service JWTs (ADR-008); not managed by the Spring Boot BOM. -->
+        <nimbus-jose-jwt.version>9.47</nimbus-jose-jwt.version>
+        <!-- Kafka event backbone (ADR-005). Broker image is apache/kafka in KRaft mode. -->
+        <kafka.image>apache/kafka:3.7.2</kafka.image>
     </properties>
 
     <dependencyManagement>

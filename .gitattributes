@@ -1,0 +1,9 @@
+# Normalise line endings: LF in the repository, native in the working tree.
+# Without this, Windows checkouts re-commit every file as CRLF and swamp diffs.
+* text=auto eol=lf
+
+# Binary assets — never touch.
+*.png binary
+*.jpg binary
+*.pdf binary
+*.jar binary
