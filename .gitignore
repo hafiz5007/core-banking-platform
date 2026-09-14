@@ -28,3 +28,7 @@ Thumbs.db
 
 # Seed script state: ids of records with no natural key, so re-runs reuse them.
 scripts/.seed-state.json
+
+
+# Internal specification PDFs — not published
+*.pdf
