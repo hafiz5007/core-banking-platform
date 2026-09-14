@@ -32,3 +32,6 @@ scripts/.seed-state.json
 
 # Internal specification PDFs — not published
 *.pdf
+
+# Personal planning notes — kept locally, not published
+DEVELOPER_GUIDE_NEXT_PHASE.md

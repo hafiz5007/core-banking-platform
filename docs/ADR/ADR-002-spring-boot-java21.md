@@ -29,9 +29,8 @@ Key factors:
   built in; replaces a custom gateway with ~10 lines of YAML.
 - **Actuator + Micrometer + OTLP** — one dependency away from OpenTelemetry traces, Prometheus
   metrics, and structured health checks.
-- **Interview legibility** — Spring Boot is the stack every UK bank tech interviewer can read and
-  evaluate; choosing a niche framework introduces an explanation burden that detracts from
-  architecture discussion.
+- **Legibility** — Spring Boot is the stack most JVM engineers in this domain already know, so a
+  new contributor spends their attention on the banking logic rather than on the framework.
 
 ## Alternatives considered
 
@@ -40,8 +39,7 @@ Key factors:
    (Micronaut Data has a different query API). Rejected: marginal gain, higher onboarding cost.
 2. **Quarkus 3.x** — native compilation with GraalVM is compelling for serverless/edge; however,
    native builds add 5–10 min to CI, JVM mode gains are similar to Loom-enabled Spring Boot, and
-   Quarkus is uncommon in UK banking shops. Rejected: disproportionate CI cost, low interviewer
-   familiarity.
+   Quarkus is uncommon in this domain. Rejected: disproportionate CI cost for no throughput gain.
 3. **Spring Boot 3.x + WebFlux (reactive)** — solves the same throughput problem as Loom but at
    the cost of reactive programming model throughout (Mono/Flux everywhere, no blocking drivers).
    Rejected: imperative code with virtual threads is simpler, easier to reason about, and achieves

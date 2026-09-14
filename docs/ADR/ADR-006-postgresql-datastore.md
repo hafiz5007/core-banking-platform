@@ -28,8 +28,8 @@ Rationale for PostgreSQL:
 - **LISTEN / NOTIFY** — lightweight mechanism for the outbox relay to be notified of new rows
   without constant polling (enhancement path over the scheduler in ADR-004).
 - **Full ACID transactions** — non-negotiable for a double-entry ledger and payment processing.
-- **Prevalence in UK fintech** — PostgreSQL is the default choice at Monzo, Starling, Wise, and
-  most UK fintechs; interviewers will recognise schema and index decisions.
+- **Prevalence in fintech** — PostgreSQL is the default choice across the sector, so its
+  operational behaviour under financial workloads is well documented and widely understood.
 - **Flyway** — Spring Boot + Flyway migrates PostgreSQL schemas on startup; no separate migration
   runner required.
 

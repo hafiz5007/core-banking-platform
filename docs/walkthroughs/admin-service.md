@@ -50,7 +50,7 @@ The service owns three tables: `role`, `approval_request`, and `audit_event`. `r
 - Adapters: admin-service/src/main/java/com/bank/admin/adapter/in/web/AdminController.java, admin-service/src/main/java/com/bank/admin/adapter/out/persistence/*
 - Configuration: admin-service/src/main/java/com/bank/admin/AdminServiceApplication.java, admin-service/src/main/java/com/bank/admin/config/OpenApiConfig.java
 
-## Interview flashcards
+## Design Q&A
 - Q: "Why did you use RBAC here?" → A: It gives a clear, least-privilege model for back-office access and keeps permission checks centralized.
 - Q: "How would you scale this to 10x?" → A: The service is already read-light and write-light; I would keep the same transactional model and scale horizontally, then add indexes or projections only if audit or role lookups became hot.
 - Q: "What would you change with hindsight?" → A: I would externalize permission names and privileged action types into a more explicit policy model if the catalogue grew much larger.

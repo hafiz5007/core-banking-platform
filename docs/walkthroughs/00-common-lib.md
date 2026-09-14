@@ -44,7 +44,7 @@ No direct Postgres tables live in common-lib. It only defines reusable value obj
 - Adapters: common-lib/src/main/java/com/bank/common/web/CorrelationIdFilter.java, common-lib/src/main/java/com/bank/common/tenant/TenantContextFilter.java
 - Configuration: common-lib/pom.xml
 
-## Interview flashcards
+## Design Q&A
 - Q: "Why did you use X here?" → A: We use `Money` so every service gets exact decimal math, currency awareness, and a single place to enforce rounding rules.
 - Q: "How would you scale this to 10x?" → A: The library itself is already stateless; scaling comes from keeping the shared contracts stable while each service independently adopts them.
 - Q: "What would you change with hindsight?" → A: I would centralize more of the web exception mapping and filter registration conventions so every service needs less boilerplate.

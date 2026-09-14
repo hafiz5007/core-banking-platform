@@ -58,7 +58,7 @@ The service owns four main tables: `product`, `account`, `account_holder`, and `
 - Adapters: account-service/src/main/java/com/bank/account/adapter/in/web/AccountController.java, account-service/src/main/java/com/bank/account/adapter/in/web/ProductController.java, account-service/src/main/java/com/bank/account/adapter/out/persistence/*, account-service/src/main/java/com/bank/account/adapter/out/ledger/*
 - Configuration: account-service/src/main/java/com/bank/account/AccountServiceApplication.java, account-service/src/main/java/com/bank/account/config/OpenApiConfig.java
 
-## Interview flashcards
+## Design Q&A
 - Q: "Why did you use a product catalogue here?" → A: It lets the business define account terms once and open many accounts from those terms without code changes.
 - Q: "How would you scale this to 10x?" → A: I would keep the bounded context and transactional boundaries the same, then scale the service horizontally and move more read-heavy queries to projections if needed.
 - Q: "What would you change with hindsight?" → A: I would extract more of the account-opening rules into explicit domain services or factories to make the lifecycle rules easier to test in isolation.

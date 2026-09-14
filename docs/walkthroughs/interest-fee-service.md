@@ -49,7 +49,7 @@ The service owns four main tables: `interest_position`, `fee_charge`, `change_lo
 - Adapters: interest-fee-service/src/main/java/com/bank/interestfee/adapter/in/web/InterestController.java, interest-fee-service/src/main/java/com/bank/interestfee/adapter/in/scheduler/EodScheduler.java, interest-fee-service/src/main/java/com/bank/interestfee/adapter/out/persistence/*, interest-fee-service/src/main/java/com/bank/interestfee/adapter/out/ledger/HttpLedgerAdapter.java
 - Configuration: interest-fee-service/src/main/java/com/bank/interestfee/InterestFeeServiceApplication.java, interest-fee-service/src/main/java/com/bank/interestfee/config/OpenApiConfig.java
 
-## Interview flashcards
+## Design Q&A
 - Q: "Why did you keep accrued interest separate from principal?" → A: It lets the service track earned-but-not-yet-capitalized interest accurately and post it only when the bank decides to capitalize.
 - Q: "How would you scale this to 10x?" → A: I would keep the batch semantics the same, then partition positions by tenant or business grouping and parallelize the end-of-day run if the number of accounts grew significantly.
 - Q: "What would you change with hindsight?" → A: I would probably extract the accrual and fee posting policies into dedicated domain services if the product set expanded a lot.

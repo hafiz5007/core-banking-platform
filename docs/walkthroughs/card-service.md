@@ -52,7 +52,7 @@ The service owns four tables: `card`, `card_authorization`, `change_log`, and th
 - Adapters: card-service/src/main/java/com/bank/card/adapter/in/web/CardController.java, card-service/src/main/java/com/bank/card/adapter/out/persistence/*, card-service/src/main/java/com/bank/card/adapter/out/ledger/HttpLedgerAdapter.java
 - Configuration: card-service/src/main/java/com/bank/card/CardServiceApplication.java, card-service/src/main/java/com/bank/card/config/OpenApiConfig.java
 
-## Interview flashcards
+## Design Q&A
 - Q: "Why did you tokenize the card?" → A: It keeps the stored data minimal and avoids persisting the full PAN, which reduces sensitive-data exposure.
 - Q: "How would you scale this to 10x?" → A: I would keep the online authorization path small and stateless, then scale it horizontally and separate any batch reconciliation or ledger posting pressure from the synchronous card decision path.
 - Q: "What would you change with hindsight?" → A: I would move more of the controls and settlement rules into explicit domain methods or policy objects if the card product matrix became more complex.

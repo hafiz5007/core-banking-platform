@@ -1,158 +1,160 @@
 # ADR-000 — Architecture Overview
 
-**Status:** Proposed
-**Date:** 2026-07-19
-**Deciders:** Shardar Rahman
-**Consulted:** (none — solo build)
-**Informed:** future interviewers
+- **Status:** Accepted
+- **Date:** 2026-09-14 (supersedes the original 2026-07-19 draft, which described a polyglot
+  design that was evaluated and not built — see *Alternatives considered*)
+- **Scope:** the whole platform
 
 ---
 
 ## Context
 
-I'm building a portfolio-flagship Core Banking Platform to demonstrate multi-service system-design competency at Senior / Lead / Architect level. The audience is UK bank + fintech hiring managers who read READMEs during interview loops.
+A retail core banking platform has to do several things that are individually well understood but
+awkward together:
 
-Every UK banking interview eventually asks: *"How would you design a core banking system?"* Portfolio projects that show a single microservice (auth, ledger, or KYC in isolation) partially answer this. A portfolio project that shows **seven services collaborating end-to-end**, uses **real ISO 20022 message formats**, and treats **reconciliation as a first-class concern** does the whole job.
+- Move money between accounts without ever losing or duplicating a posting, including when a
+  downstream rail rejects the transfer after the books have already moved.
+- Keep an authoritative set of books that can be proven correct at any moment.
+- Screen customers and transactions against sanctions and AML rules, and fail *closed* when the
+  screening system is unavailable.
+- Talk to external rails — domestic clearing, SWIFT, card networks, KYC providers — none of which
+  are available during development.
+- Stay auditable end to end, because a regulator can ask who changed what and when.
 
-Non-goal for this decision record: rebuild a real regulator-ready bank. That takes years of compliance work and a legal team. Everything below is scoped for a demo that answers senior-level design interviews in 45 minutes with real code to point at.
+This ADR records the overall shape chosen to satisfy those constraints, and the boundaries that
+were deliberately drawn. Each significant decision has its own ADR; this one is the map.
 
 ## Decision
 
-Build a polyglot event-driven microservices platform, 7 services, 3 languages, deployed via Docker Compose locally and Helm on Kubernetes optionally. Kafka as the event backbone. Postgres per service. OpenTelemetry across the estate. Ships in three phases across Sprint Weeks 2-4 of the 6-month plan.
+Build the platform as **thirteen Maven modules in a single reactor**: eleven runnable Spring Boot
+services (ten business services plus an API gateway) and two shared libraries, all on **Java 21 and
+Spring Boot 3.4**.
 
-## System scope
+**Service boundaries follow the banking domain**, not technical layers:
+
+| Service | Owns |
+|---------|------|
+| `customer-service` | Onboarding, KYC, sanctions/PEP screening, consent, Open Banking TPP consents |
+| `account-service` | Accounts, product catalogue, holders and mandates, holds and limits |
+| `ledger-service` | The authoritative double-entry general ledger |
+| `payment-service` | The payment engine and every rail strategy |
+| `card-service` | Issuance, authorization, settlement, clearing reconciliation |
+| `interest-fee-service` | Accrual, capitalization, fees, end-of-day batch |
+| `risk-aml-service` | Transaction monitoring, alerts, cases, SAR filing |
+| `notification-service` | Alerts, OTP, statement dispatch |
+| `admin-service` | RBAC, maker-checker, immutable audit trail |
+| `reporting-service` | Operational and regulatory reporting |
+| `api-gateway` | The external front door |
+
+Plus `common-lib` (the `Money` type, RFC 9457 error model, correlation-id and tenant propagation,
+service-auth interceptors) and `ledger-grpc-api` (the gRPC contract, owned by neither caller nor
+callee).
+
+Five decisions hold the design together:
+
+1. **The ledger is the single source of truth for money** and is append-only. Entries are immutable
+   and balanced at write time; a mistake is corrected by a reversing entry, never by an update or
+   delete. A trial-balance endpoint proves the invariant on demand. → [ADR-003](ADR-003-ledger-double-entry.md)
+
+2. **Anything that moves money is idempotent and compensating.** Every mutating call carries an
+   idempotency key, so a retry returns the original result rather than posting twice. Payments run
+   as a saga: if a rail rejects after the ledger has been posted, the saga reverses the posting and
+   the payment ends `COMPENSATED` rather than silently inconsistent. → [ADR-012](ADR-012-iso20022-payments.md)
+
+3. **Events are published through a transactional outbox**, written in the same database
+   transaction as the state change and relayed to Kafka afterwards. This removes the dual-write
+   failure where the database commits and the broker does not. → [ADR-004](ADR-004-outbox-pattern.md),
+   [ADR-005](ADR-005-kafka-kraft.md)
+
+4. **Every external integration sits behind a port** with a working stub adapter, selected by
+   configuration rather than by code. The platform boots, and its entire test suite runs, with no
+   external dependency whatsoever — and the same binary talks to a real provider when configured to.
+
+5. **Synchronous where correctness needs an answer now, asynchronous where it does not.** A payment
+   must know the ledger accepted the posting before it confirms, so that call is synchronous — over
+   gRPC on the hot path between account and ledger ([ADR-007](ADR-007-grpc-account-ledger.md)),
+   REST elsewhere. A customer alert does not block a payment, so notification is driven off Kafka
+   events ([ADR-014](ADR-014-notification-async-kafka.md)).
+
+**Internal structure.** Every service uses the same hexagonal layout: `domain/` holds aggregates and
+value objects and imports no framework; `application/` holds use-cases and declares what it needs as
+outbound `port/` interfaces; `adapter/in|out/` implements those ports. The dependency direction is
+always inward. This is enforced by review, and it is what makes the stub/real adapter swap a
+configuration change.
+
+**Data.** One PostgreSQL instance, a private schema per service, forward-only Flyway migrations, and
+Hibernate `ddl-auto: validate` so a service refuses to start if its entities and its migrated schema
+have drifted. A schema boundary rather than a database boundary is a deliberate trade: it preserves
+per-service data ownership and migration independence at a fraction of the local operational cost.
+→ [ADR-006](ADR-006-postgresql-datastore.md)
+
+**Security.** OAuth2 at the edge on the gateway; short-lived JWTs on east-west calls over both REST
+and gRPC, off by default so the platform runs without an identity provider
+([ADR-008](ADR-008-jwt-service-auth.md)). Rate limiting before routing
+([ADR-013](ADR-013-rate-limiting-gateway.md)).
+
+**Correctness of money itself.** A dedicated `Money` value object over `BigDecimal` plus an ISO-4217
+currency, because `BigDecimal` alone cannot tell `GBP 100` from `USD 100` and silent currency mixing
+is a critical bug class in financial software. → [ADR-010](ADR-010-money-type.md)
+
+**Testing.** Integration tests run against a real PostgreSQL 16 in Testcontainers rather than an
+in-memory substitute, so migrations, SQL and JPA mappings are exercised as they will actually run.
+→ [ADR-009](ADR-009-testcontainers.md)
+
+## In scope / out of scope
 
 | Capability | In scope | Out of scope |
-| --- | --- | --- |
-| Customer management | Basic lifecycle, PII-safe reads, KYC-lite hook | Full document capture, biometrics, sanctions escalation |
-| Account lifecycle | Open, freeze, close, product catalogue (2-3 types) | Overdraft management, interest calculation edge cases |
-| General ledger | Double-entry postings, multi-currency, balance projection | FX booking flows, hedge accounting, off-balance-sheet items |
-| Payment routing | ISO 20022 `pain.001` → internal / Faster Payments / SWIFT stubs | Real rail connectivity, card-network authorisation |
-| Reconciliation | T+1 batch, mock counterparty CSV, break management | Real Nostro reconciliation, corporate action processing |
-| Statement generation | End-of-day balance snapshot, ISO 20022 `camt.053`, PDF | Regulatory statement variants, MT940 legacy support |
-| API gateway | OAuth 2.0, per-endpoint rate limiting, distributed tracing | Bot detection, DDoS mitigation, WAF rules |
-| Observability | Traces + metrics + logs, one distributed-trace demo | SLO burn-rate alerts, cost dashboards |
-
-## Services (7 total)
-
-```
-core-banking-platform/
-├── libs/
-│   ├── shared-types/            # Money, AccountId, TransactionId — value objects
-│   ├── shared-events/           # Avro / Protobuf schemas — Kafka contract
-│   └── shared-observability/    # OpenTelemetry setup for cross-language sameness
-├── services/
-│   ├── customer-service/        # Java 21 + Spring Boot 3
-│   ├── account-service/         # Java 21 + Spring Boot 3
-│   ├── ledger-service/          # Java 21 + Spring Boot 3
-│   ├── payment-router/          # Kotlin + Spring Boot 3
-│   ├── reconciliation-service/  # .NET 10 Worker Service
-│   ├── statement-service/       # Java 21 + Spring Batch
-│   └── api-gateway/             # .NET 10 (reuses auth-dotnet patterns)
-├── deploy/
-│   ├── compose/                 # docker-compose for local
-│   └── helm/                    # Helm charts for K8s (optional)
-├── docs/
-│   ├── ADR/                     # decision records
-│   ├── architecture.md          # C4 diagrams + interaction flows
-│   ├── banking-domain.md        # chart of accounts, ISO 20022 primer
-│   └── runbook.md               # SRE-style operational guide
-└── README.md
-```
-
-## Cross-cutting infrastructure
-
-- **Kafka (KRaft mode)** — event backbone. Topics: `accounts.*`, `payments.*`, `settlements.*`, `statements.*`. Retention: 7 days for compacted balance snapshots, 30 days for events.
-- **Postgres 16** — one instance per service (true microservice data ownership). Local dev shares one Postgres container with separate databases.
-- **Redis 7** — rate limiter state (api-gateway) + hot balance cache (ledger-service).
-- **Debezium** — CDC off outbox tables for effectively-once event publication.
-- **OpenTelemetry Collector** → Prometheus (metrics) + Jaeger (traces) + Loki (logs) via Grafana.
-
-## Key architectural decisions (deep-dive in separate ADRs)
-
-1. **Polyglot by design** — three languages. Rationale: showcases cross-ecosystem competency; each language plays to strengths (Java for domain-heavy services, Kotlin for payment routing's expression power, .NET for the gateway + batch worker leveraging existing auth-dotnet patterns). Detailed in ADR-001.
-
-2. **Per-service Postgres schema** — no shared database. Rationale: true bounded-context isolation; makes contract-driven communication mandatory; forces API discipline. Cost: 7 databases to manage locally (mitigated by shared container + logical databases).
-
-3. **Kafka + Outbox pattern for effectively-once** — dual-write safety. Rationale: proven pattern from payments-ledger-demo repo; eliminates the classic "DB commit succeeded, Kafka publish failed" bug. Detailed in ADR-004.
-
-4. **ISO 20022 as first-class citizen** — `pain.001`, `pacs.008`, `camt.053` handled natively. Rationale: SWIFT MT-to-ISO 20022 migration is complete (November 2025 deadline); every UK bank is now on 20022 or in coexistence mode. Detailed in ADR-002.
-
-5. **T+1 batch reconciliation, not real-time** — nightly job matches ledger against mock counterparty CSV. Rationale: matches real-world banking cadence (Nostro reconciliation is T+1 industry-standard); real-time reconciliation is possible but not the norm and adds complexity for demo value zero. Detailed in ADR-003.
-
-6. **OAuth 2.0 gateway reuses auth-dotnet** — the existing portfolio auth-dotnet repo becomes a git submodule / library reference from api-gateway. Rationale: don't rebuild what already exists; demonstrates linking portfolio pieces together (an interview talking point in itself).
-
-## Non-goals (strict — say no repeatedly)
-
-- **Regulatory reporting** — Basel III capital adequacy, IFRS 9 credit loss, PSD2 SCA exemption reporting. Each is a career project on its own. Not in scope.
-- **Real SWIFT / Faster Payments / card-network connectivity** — mock the interfaces. The interesting design work is in the mock boundary, not the real rail integration.
-- **Full customer UI** — an OpenAPI + Postman collection is enough. Every hour on a UI is an hour not writing an ADR.
-- **Multi-region active-active** — single region. HA gimmicks are interview poison ("did you actually test this?") unless proven under real load.
-- **ML features** — no fraud model, no credit scoring, no anomaly detection. Interesting but off-topic.
-- **Real customer PII** — the customer-service handles PII-safe pattern (encryption-at-rest hooks, PII-masked logs, GDPR-adjacent) but stores only mock data.
-- **Kubernetes operators / CRDs** — Helm charts are enough demonstration. Custom operators are scope creep.
+|------------|----------|--------------|
+| Customer management | Lifecycle, KYC hooks, screening, consent, risk rating | Document capture, biometrics, sanctions escalation workflow |
+| Accounts | Open/freeze/close, product catalogue, mandates, holds, limits | Overdraft management, complex interest edge cases |
+| General ledger | Double-entry postings, reversal, trial balance, multi-currency | Hedge accounting, off-balance-sheet items |
+| Payments | Intrabank, instant/RTGS/ACH, cross-border, FX, standing orders, direct debit, P2P, bill pay | Real rail connectivity |
+| Cards | Issuance, authorization, holds, settlement, clearing reconciliation | Real card-network authorisation |
+| Risk & AML | Monitoring rules, alerts, cases, SAR | Production-grade rule engine, ML models |
+| Observability | Correlation ids, metrics, health, OpenAPI | SLO burn-rate alerting, cost dashboards |
 
 ## Alternatives considered
 
-1. **Monolith with modular design.**
-   - Pro: faster to build, lower ops complexity
-   - Con: doesn't showcase distributed-systems thinking, which is the entire point
-   - Rejected.
+**A modular monolith.** Faster to build and far simpler to operate. Rejected because the problems
+worth solving here — idempotency across a service boundary, compensation when a remote call fails,
+effectively-once event delivery, contract ownership — only exist once the boundaries are real. In a
+monolith they collapse into method calls and the design demonstrates nothing.
 
-2. **Single language (Java for everything).**
-   - Pro: simpler, one build system
-   - Con: I already have single-language portfolio projects (`payments-ledger-demo` is pure Java, `auth-dotnet` is pure .NET). Repeating that adds nothing.
-   - Rejected.
+**A polyglot estate (Java + Kotlin + .NET) with per-service databases, Debezium CDC and Redis.**
+This was the original plan and is what the superseded draft of this ADR described. Rejected during
+implementation: three build ecosystems and three sets of idioms multiplied the maintenance cost
+without changing a single architectural property, and CDC via Debezium added a piece of
+infrastructure to operate for an outbox relay that a scheduled poller handles correctly at this
+scale. The estate is now uniformly Java 21, and the outbox is relayed by a scheduled publisher.
 
-3. **Full event sourcing (event stream = source of truth, no relational DB).**
-   - Pro: pure architectural elegance
-   - Con: real banks use event sourcing selectively (for the ledger, not for customer records); doing it universally is over-engineering that costs weeks
-   - Rejected — event sourcing is used only for ledger state (implicit via postings), not universally.
+**Full event sourcing as the universal persistence model.** Rejected as over-engineering. Event
+sourcing earns its complexity for the ledger, where the journal genuinely *is* the state — and the
+ledger is modelled that way. Applying it to customer records and product catalogues would have cost
+weeks and bought nothing.
 
-4. **Kubernetes-first, no Docker Compose.**
-   - Pro: cleaner production story
-   - Con: makes local development an ops project; a Sprint-scale portfolio can't afford this
-   - Rejected — Docker Compose primary, Helm charts as bonus.
+**Kubernetes-first with no Docker Compose.** Rejected: it turns local development into an ops
+project. Compose is the primary local target; a Kubernetes deployment is a later concern.
 
 ## Consequences
 
-**Positive:**
-- Strong Lead-signal for interviews — moves you from "Senior IC" to "systems architect" evidence
-- Real ISO 20022 handling in a portfolio project (rare)
-- Polyglot demonstrates architectural neutrality (rare)
-- Reconciliation as a first-class service (very rare in portfolios)
-- 10-15 ADRs = 10-15 talking points at every interview
+**What this buys.** The failure modes that matter in payments are addressed explicitly rather than
+implicitly: no double posting, no orphaned posting after a rail rejection, no committed state whose
+event was lost, no cross-currency arithmetic. Boundaries are enforced by the module graph, so a
+violation is a compile error rather than a code-review argument. Every external dependency can be
+stubbed, so the test suite is hermetic and fast.
 
-**Negative:**
-- 6-8 weeks of focused work — meaningful opportunity cost
-- Complex local dev environment (7 services + Kafka + Postgres + Redis) — mitigated by Docker Compose
-- Polyglot means maintaining 3 build ecosystems (Gradle, Maven, dotnet CLI) — accepted cost
+**What it costs.** Eleven services to run locally, and a reactor build that takes minutes rather
+than seconds. Cross-service changes require a contract change first. Debugging a payment means
+following a correlation id across four services rather than reading one stack trace.
 
-**Risks + mitigations:**
-- **Risk:** scope creep, especially adding UI / ML / regulatory features under time pressure
-  **Mitigation:** the "Non-goals" section above is the veto rule; re-read weekly during Sunday review
-- **Risk:** flagship slips beyond August, blocking September interviews from citing it
-  **Mitigation:** Sprint Week 3 checkpoint — if fewer than 2 services fully shipped, cut Reconciliation from scope
-- **Risk:** interview time on flagship walkthroughs is scarce; can't cover 7 services in 10 minutes
-  **Mitigation:** README's "5-minute tour" section is the anchor; deeper questions land on ADRs
+**What is deliberately unfinished.** Every external integration is a stub. Service-to-service auth
+uses a shared HMAC secret, which is adequate for local and CI use but means every holder can mint as
+well as verify — production needs RS256 + JWKS. Edge OAuth2 is off by default. These are tracked,
+with priorities, in [`../PENDING_TASKS.md`](../PENDING_TASKS.md).
 
-## What comes next
+## References
 
-- **ADR-001** — Polyglot service-tech justification (which language for which service, and why)
-- **ADR-002** — ISO 20022 accept-both (XML pain.001 + internal JSON API) — why both
-- **ADR-003** — T+1 batch reconciliation vs. real-time — why batch
-- **ADR-004** — Outbox pattern + Debezium CDC — why not direct Kafka publish
-- **ADR-005** — Per-service Postgres vs. shared DB — the always-argued question
-- **ADR-006** — Money type: BigDecimal + ISO 4217 currency code — precision and locale rules
-- **ADR-007** — Chart of accounts design — how the 5 top-level accounts map to service data
-
-Draft one ADR per week during the Sprint. Each ADR is an interview talking point.
-
-## Open questions (revisit before ADR-001)
-
-- Do we support **corporate accounts** or just retail? (Suggest: retail only for scope. Corporate opens Nostro/Vostro complexity.)
-- Do we support **multiple currencies at the account level** or one currency per account? (Suggest: one currency per account, multiple accounts per customer. Simpler; matches most retail banks.)
-- Do we ship **API contracts as OpenAPI** or **gRPC + proto**? (Suggest: OpenAPI 3.1 for external-facing / gateway; internal service-to-service can be OpenAPI too. gRPC is nice but adds tooling burden.)
-- **Deployment target for portfolio show-off** — Docker Compose only, or one-click K8s (e.g. k3d + Helm)? (Suggest: Docker Compose primary; Helm charts written but K8s deployment is stretch scope.)
-
-Answer these before starting Sprint Week 2.
+- [`../SERVICE_WIRING.md`](../SERVICE_WIRING.md) — call graph and security model
+- [`../development-guidance.md`](../development-guidance.md) — build, run, debug, test, publish
+- [`../GO_LIVE_READINESS.md`](../GO_LIVE_READINESS.md) — release gate and hardening checklist
+- [`../walkthroughs/`](../walkthroughs/) — one narrative per service

@@ -49,8 +49,8 @@ payment-service/
 ## Alternatives considered
 
 1. **Custom JSON schema** — fastest to implement; however, it forces any integration with real
-   payment rails (Faster Payments, SWIFT, SEPA) to add a translation layer later, and misses the
-   opportunity to demonstrate ISO 20022 familiarity to UK banking interviewers. Rejected.
+   payment rails (Faster Payments, SWIFT, SEPA) to add a translation layer later — and that
+   translation is exactly where message-mapping defects appear. Rejected.
 2. **FIX protocol** — capital markets messaging standard; not used for retail/corporate banking
    payments. Rejected (wrong domain).
 3. **SWIFT MT messages (legacy)** — still in use at many correspondent banks but being phased out

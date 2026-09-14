@@ -10,7 +10,7 @@
 The platform spans multiple capability domains with different optimisation axes:
 
 - **Banking core** (customer, account, ledger, payment, reporting) — transaction safety, mature
-  Spring ecosystem integration, team familiarity in UK bank/fintech interviews.
+  Spring ecosystem integration, and the deepest pool of engineers who can maintain it.
 - **KYC / risk** — complex nullable domain models (document states, AML scores), frequent data
   transformations, benefit from concise null-safe code.
 - **Auth / identity** — enterprise auth patterns (OAuth 2.0, OIDC, token validation) where .NET /
@@ -39,8 +39,8 @@ stack (OpenTelemetry), and the same `common-lib` value objects where applicable.
    language and reduces the hiring-readiness signal for Java-only roles.
 3. **Node.js / Python for KYC** — popular in data-science/ML pipelines but adds a non-JVM runtime
    with no shared type definitions and weaker compile-time guarantees.
-4. **Go for the gateway** — excellent performance but adds a fourth runtime with no shared library
-   story and is less common in UK banking interviews.
+4. **Go for the gateway** — excellent performance, but adds a fourth runtime with no shared
+   library story and no reuse of the platform's existing types.
 
 ## Consequences
 

@@ -52,7 +52,7 @@ The service owns four tables: `notification`, `otp_challenge`, `change_log`, and
 - Adapters: notification-service/src/main/java/com/bank/notification/adapter/in/web/NotificationController.java, notification-service/src/main/java/com/bank/notification/adapter/out/sender/LoggingSenderAdapter.java, notification-service/src/main/java/com/bank/notification/adapter/out/persistence/*
 - Configuration: notification-service/src/main/java/com/bank/notification/NotificationServiceApplication.java, notification-service/src/main/java/com/bank/notification/config/OpenApiConfig.java
 
-## Interview flashcards
+## Design Q&A
 - Q: "Why did you hash the OTP instead of storing it directly?" → A: It prevents the database from becoming a source of active verification codes, which is a simple but important security improvement.
 - Q: "How would you scale this to 10x?" → A: I would keep the same API contract but swap the logging sender for real gateways and move bulk delivery to async infrastructure if message volume grew sharply.
 - Q: "What would you change with hindsight?" → A: I would likely split delivery templates and channel routing out if the notification matrix expanded much beyond the current alert and OTP cases.

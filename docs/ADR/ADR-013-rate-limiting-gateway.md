@@ -59,7 +59,7 @@ definitions. Rate limit metadata is exposed as response headers (`X-RateLimit-Re
    as the edge. Rejected: unnecessary extra hop.
 3. **API management platform (Kong, AWS API Gateway)** — production-grade with dashboards,
    analytics, plugin marketplace; however, adds significant operational overhead and licensing cost
-   for a portfolio demo. Rejected: Spring Cloud Gateway covers the required feature set.
+   relative to the requirement. Rejected: Spring Cloud Gateway covers the needed feature set.
 4. **Token bucket in-memory (per-instance)** — no Redis required; however, with multiple gateway
    instances (horizontal scaling) each instance has a separate counter, so a client could multiply
    their effective limit by the instance count. Rejected for correctness; Redis provides distributed

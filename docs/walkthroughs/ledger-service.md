@@ -49,7 +49,7 @@ The service owns four core tables: `ledger_account`, `journal_entry`, `journal_l
 - Adapters: ledger-service/src/main/java/com/bank/ledger/adapter/in/web/LedgerController.java, ledger-service/src/main/java/com/bank/ledger/adapter/out/persistence/*
 - Configuration: ledger-service/src/main/java/com/bank/ledger/LedgerServiceApplication.java, ledger-service/src/main/java/com/bank/ledger/config/OpenApiConfig.java
 
-## Interview flashcards
+## Design Q&A
 - Q: "Why did you enforce balance in the domain?" → A: Because invalid journal entries must be impossible to persist; the accounting invariant belongs in the aggregate, not in a downstream check.
 - Q: "How would you scale this to 10x?" → A: I would keep the same posting contract but scale reads and writes by tenant or account partition if contention grew, while preserving the single transactional balance invariant.
 - Q: "What would you change with hindsight?" → A: I would likely add more explicit domain services around posting templates or batching if the set of supported accounting flows expanded a lot.

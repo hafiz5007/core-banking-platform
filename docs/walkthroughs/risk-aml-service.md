@@ -46,7 +46,7 @@ The service owns four main tables: `aml_case`, `aml_alert`, `change_log`, and th
 - Adapters: risk-aml-service/src/main/java/com/bank/riskaml/adapter/in/web/RiskController.java, risk-aml-service/src/main/java/com/bank/riskaml/adapter/out/persistence/*
 - Configuration: risk-aml-service/src/main/java/com/bank/riskaml/RiskAmlServiceApplication.java, risk-aml-service/src/main/java/com/bank/riskaml/config/OpenApiConfig.java
 
-## Interview flashcards
+## Design Q&A
 - Q: "Why did you keep the rules deterministic?" → A: It makes AML decisions explainable, testable, and easy to audit, which matters more than model complexity at this stage.
 - Q: "How would you scale this to 10x?" → A: I would keep the rule engine small and stateless, then partition alert/case persistence and add richer asynchronous review workflows if transaction volume grew sharply.
 - Q: "What would you change with hindsight?" → A: I would probably split case management and monitoring rules into separate components once the rule set and investigation workflow become much larger.

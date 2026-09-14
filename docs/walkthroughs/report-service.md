@@ -45,7 +45,7 @@ The service owns a single core table, `report_metric`, which stores one business
 - Adapters: reporting-service/src/main/java/com/bank/reporting/adapter/in/web/ReportingController.java, reporting-service/src/main/java/com/bank/reporting/adapter/out/persistence/ReportMetricRepository.java
 - Configuration: reporting-service/src/main/java/com/bank/reporting/ReportingServiceApplication.java, reporting-service/src/main/java/com/bank/reporting/config/OpenApiConfig.java
 
-## Interview flashcards
+## Design Q&A
 - Q: "Why did you use a projection instead of querying live tables?" → A: Reporting needs to stay off the transactional path and should be queryable without coupling to operational schemas.
 - Q: "How would you scale this to 10x?" → A: I would keep the same projection pattern but partition or pre-aggregate by date and organization if metric volume became large.
 - Q: "What would you change with hindsight?" → A: I would likely add richer dimensions or a separate analytics store only if the reporting questions outgrew simple daily totals.

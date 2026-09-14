@@ -1064,7 +1064,7 @@ Things a new developer will trip over. Each is real as of the last verification 
 | `docs/GO_LIVE_READINESS.md` | Release gate, hardening checklist, DR drill, cutover runbook |
 | `DEVELOPER_GUIDE_NEXT_PHASE.md` | Phase plan, walkthrough/ADR templates, working rhythm, git discipline |
 | `docs/ADR/` | Why each decision was made — start with ADR-003 (double-entry), ADR-007 (gRPC), ADR-008 (service auth), ADR-010 (money), ADR-012 (ISO 20022) |
-| `docs/walkthroughs/` | A narrative per service — purpose, API surface, data model, key decisions, interview flashcards. Nine of eleven services are written up (reporting's file is `report-service.md`); `payment-service` and `api-gateway` are still missing. |
+| `docs/walkthroughs/` | A narrative per service — purpose, API surface, data model, key decisions, and a design Q&A. Ten of eleven services are written up (reporting's file is `report-service.md`); `api-gateway` is still missing. |
 | `01_Core_Banking_Project_Requirements.pdf` | Full functional requirements |
 | `02_Developer_Guideline_and_Sprint_Plan.pdf` | Engineering standards and the sprint plan |
 | `03_Detailed_Developer_Delivery_Plan.pdf` | Detailed delivery breakdown |

@@ -52,7 +52,7 @@ The service owns four tables in its private `customer` schema: `customer`, `cons
 - Adapters: customer-service/src/main/java/com/bank/customer/adapter/in/web/CustomerController.java, customer-service/src/main/java/com/bank/customer/openbanking/OpenBankingConsentController.java, customer-service/src/main/java/com/bank/customer/adapter/out/kyc/StubKycVerificationAdapter.java, customer-service/src/main/java/com/bank/customer/adapter/out/screening/StubScreeningAdapter.java, customer-service/src/main/java/com/bank/customer/adapter/out/persistence/*
 - Configuration: customer-service/src/main/java/com/bank/customer/CustomerServiceApplication.java, customer-service/src/main/java/com/bank/customer/config/OpenApiConfig.java
 
-## Interview flashcards
+## Design Q&A
 - Q: "Why did you keep KYC and screening behind ports?" → A: It lets the service swap real providers in later while keeping local development and testing deterministic.
 - Q: "How would you scale this to 10x?" → A: I would keep onboarding transactional, keep provider calls behind ports, and move any heavy screening or consent processing to async workflows only if those external integrations became the bottleneck.
 - Q: "What would you change with hindsight?" → A: I would likely split the Open Banking consent lifecycle into its own service once its regulatory and integration surface grew much larger.

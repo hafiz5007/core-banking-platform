@@ -65,7 +65,7 @@ The service owns seven tables in its private `payment` schema: `payment`, `outbo
 - Inbound: `adapter/in/web/` (four controllers), `adapter/in/scheduler/` (standing-order run)
 - Configuration: `src/main/resources/application.yml` — `kafka.*`, `screening.adapter`, `service-auth.*`, `outbox.relay.delay-ms`
 
-## Interview flashcards
+## Design Q&A
 
 - Q: "Why an outbox instead of just publishing to Kafka?" → A: Because the alternative is a dual write. Publishing inline means either committing the payment and then failing to publish (event lost), or publishing and then rolling back (event describes something that never happened). The outbox row is written in the payment's own transaction, so the two cannot disagree; the relay turns that into at-least-once delivery afterwards. The cost is asynchrony and duplicate delivery, which is why the consumer keys on `(topic, partition, offset)`.
 

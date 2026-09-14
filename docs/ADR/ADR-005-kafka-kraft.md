@@ -47,7 +47,7 @@ configuration scales to a multi-node KRaft cluster in production without introdu
    issues with some Spring Kafka versions. Rejected: risk of subtle compatibility issues outweighs
    the performance benefit at demo scale.
 3. **Confluent Platform (Kraft)** — Confluent's managed distribution is production-grade but
-   requires license for some features and is overkill for a self-hosted portfolio project. Rejected.
+   requires a licence for some features and is more than a self-hosted deployment needs. Rejected.
 
 ## Consequences
 
