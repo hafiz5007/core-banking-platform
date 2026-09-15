@@ -35,3 +35,6 @@ scripts/.seed-state.json
 
 # Personal planning notes — kept locally, not published
 DEVELOPER_GUIDE_NEXT_PHASE.md
+
+# Local git-history backup bundles — never publish
+*.bundle
