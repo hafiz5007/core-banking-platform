@@ -71,10 +71,14 @@ jobs:
           fail-on-severity: high
 
       # Secret scanning.
+      # The config in gitleaks.toml extends the default rule set and allowlists
+      # synthetic HS256 test secrets under src/test/**. Real leaks in src/main/**
+      # are still caught.
       - name: Gitleaks
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_CONFIG: ${{ github.workspace }}/gitleaks.toml
   # Every service image must build. This is not covered by `mvn verify`: the Dockerfiles copy the
   # reactor and run their own Maven build, so a module added to the parent pom without the
   # Dockerfiles keeping up breaks `docker compose build` while the Maven build stays green.

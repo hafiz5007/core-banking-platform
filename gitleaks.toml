@@ -1,0 +1,19 @@
+title = "core-banking-platform"
+
+# Extend the default rule set so real production leaks are still caught.
+# We only allowlist synthetic credentials that live in test sources.
+[extend]
+useDefault = true
+
+# The default `generic-api-key` rule triggers on the deterministic HS256 test secrets
+# used by service-to-service auth tests (ADR-008). These strings never see production —
+# the real secret is injected at runtime from the platform's secret store via
+# CBP_SERVICE_AUTH_SECRET (see .env.example). We scope the allowlist to test paths only:
+# a real leak in src/main/** is still caught.
+[[rules]]
+id = "generic-api-key"
+  [rules.allowlist]
+  description = "Synthetic HS256 secrets in test fixtures only (see ADR-008)"
+  paths = [
+    '''.*/src/test/.*''',
+  ]
