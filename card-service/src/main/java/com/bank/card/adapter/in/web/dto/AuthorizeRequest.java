@@ -10,14 +10,15 @@ import java.math.BigDecimal;
 
 /** Request to authorize a card transaction. */
 public record AuthorizeRequest(
-        @NotNull @Positive BigDecimal amount,
-        @NotNull @Pattern(regexp = "^[A-Z]{3}$", message = "currencyCode must be a 3-letter ISO-4217 code")
+    @NotNull @Positive BigDecimal amount,
+    @NotNull
+        @Pattern(regexp = "^[A-Z]{3}$", message = "currencyCode must be a 3-letter ISO-4217 code")
         String currencyCode,
-        @NotBlank @Size(max = 120) String merchant,
-        CardChannel channel,
-        boolean international) {
+    @NotBlank @Size(max = 120) String merchant,
+    CardChannel channel,
+    boolean international) {
 
-    public CardChannel channelOrDefault() {
-        return channel == null ? CardChannel.POS : channel;
-    }
+  public CardChannel channelOrDefault() {
+    return channel == null ? CardChannel.POS : channel;
+  }
 }

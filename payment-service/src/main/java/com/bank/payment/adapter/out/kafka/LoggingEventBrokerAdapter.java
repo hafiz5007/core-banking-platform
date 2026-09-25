@@ -14,10 +14,10 @@ import org.springframework.stereotype.Component;
 @ConditionalOnProperty(name = "kafka.enabled", havingValue = "false", matchIfMissing = true)
 public class LoggingEventBrokerAdapter implements EventBrokerPort {
 
-    private static final Logger log = LoggerFactory.getLogger(LoggingEventBrokerAdapter.class);
+  private static final Logger log = LoggerFactory.getLogger(LoggingEventBrokerAdapter.class);
 
-    @Override
-    public void publish(String topic, String key, String payload) {
-        log.info("Kafka disabled; would publish to {} key={} payload={}", topic, key, payload);
-    }
+  @Override
+  public void publish(String topic, String key, String payload) {
+    log.info("Kafka disabled; would publish to {} key={} payload={}", topic, key, payload);
+  }
 }

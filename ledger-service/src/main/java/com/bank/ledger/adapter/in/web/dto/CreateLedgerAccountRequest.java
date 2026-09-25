@@ -8,9 +8,9 @@ import jakarta.validation.constraints.Size;
 
 /** Request to create a chart-of-accounts node. */
 public record CreateLedgerAccountRequest(
-        @NotBlank @Size(max = 40) String code,
-        @NotBlank @Size(max = 120) String name,
-        @NotNull LedgerAccountType accountType,
-        @NotNull @Pattern(regexp = "^[A-Z]{3}$", message = "currencyCode must be a 3-letter ISO-4217 code")
-        String currencyCode) {
-}
+    @NotBlank @Size(max = 40) String code,
+    @NotBlank @Size(max = 120) String name,
+    @NotNull LedgerAccountType accountType,
+    @NotNull
+        @Pattern(regexp = "^[A-Z]{3}$", message = "currencyCode must be a 3-letter ISO-4217 code")
+        String currencyCode) {}

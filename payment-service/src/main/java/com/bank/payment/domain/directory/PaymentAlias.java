@@ -14,48 +14,48 @@ import java.util.UUID;
 @Table(name = "payment_alias")
 public class PaymentAlias {
 
-    @Id
-    @Column(nullable = false, updatable = false)
-    private UUID id;
+  @Id
+  @Column(nullable = false, updatable = false)
+  private UUID id;
 
-    @Column(nullable = false, unique = true, updatable = false, length = 120)
-    private String alias;
+  @Column(nullable = false, unique = true, updatable = false, length = 120)
+  private String alias;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "alias_type", nullable = false, updatable = false, length = 10)
-    private AliasType aliasType;
+  @Enumerated(EnumType.STRING)
+  @Column(name = "alias_type", nullable = false, updatable = false, length = 10)
+  private AliasType aliasType;
 
-    @Column(name = "account_code", nullable = false, length = 40)
-    private String accountCode;
+  @Column(name = "account_code", nullable = false, length = 40)
+  private String accountCode;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private Instant createdAt;
+  @Column(name = "created_at", nullable = false, updatable = false)
+  private Instant createdAt;
 
-    protected PaymentAlias() {
-        // Required by JPA.
-    }
+  protected PaymentAlias() {
+    // Required by JPA.
+  }
 
-    public PaymentAlias(String alias, AliasType aliasType, String accountCode) {
-        this.id = UUID.randomUUID();
-        this.alias = alias;
-        this.aliasType = aliasType;
-        this.accountCode = accountCode;
-        this.createdAt = Instant.now();
-    }
+  public PaymentAlias(String alias, AliasType aliasType, String accountCode) {
+    this.id = UUID.randomUUID();
+    this.alias = alias;
+    this.aliasType = aliasType;
+    this.accountCode = accountCode;
+    this.createdAt = Instant.now();
+  }
 
-    public UUID getId() {
-        return id;
-    }
+  public UUID getId() {
+    return id;
+  }
 
-    public String getAlias() {
-        return alias;
-    }
+  public String getAlias() {
+    return alias;
+  }
 
-    public AliasType getAliasType() {
-        return aliasType;
-    }
+  public AliasType getAliasType() {
+    return aliasType;
+  }
 
-    public String getAccountCode() {
-        return accountCode;
-    }
+  public String getAccountCode() {
+    return accountCode;
+  }
 }

@@ -22,47 +22,51 @@ import org.springframework.web.filter.OncePerRequestFilter;
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class RateLimitFilter extends OncePerRequestFilter {
 
-    private final int limitPerMinute;
-    private final ConcurrentHashMap<String, Window> windows = new ConcurrentHashMap<>();
+  private final int limitPerMinute;
+  private final ConcurrentHashMap<String, Window> windows = new ConcurrentHashMap<>();
 
-    public RateLimitFilter(@Value("${gateway.rate-limit.per-minute:120}") int limitPerMinute) {
-        this.limitPerMinute = limitPerMinute;
+  public RateLimitFilter(@Value("${gateway.rate-limit.per-minute:120}") int limitPerMinute) {
+    this.limitPerMinute = limitPerMinute;
+  }
+
+  @Override
+  protected void doFilterInternal(
+      HttpServletRequest request, HttpServletResponse response, FilterChain chain)
+      throws ServletException, IOException {
+    if (request.getRequestURI().startsWith("/actuator")) {
+      chain.doFilter(request, response);
+      return;
     }
-
-    @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
-            throws ServletException, IOException {
-        if (request.getRequestURI().startsWith("/actuator")) {
-            chain.doFilter(request, response);
-            return;
-        }
-        String client = clientKey(request);
-        long minute = Instant.now().getEpochSecond() / 60;
-        Window window = windows.compute(client, (k, existing) -> {
-            if (existing == null || existing.minute != minute) {
+    String client = clientKey(request);
+    long minute = Instant.now().getEpochSecond() / 60;
+    Window window =
+        windows.compute(
+            client,
+            (k, existing) -> {
+              if (existing == null || existing.minute != minute) {
                 return new Window(minute);
-            }
-            return existing;
-        });
-        if (window.count.incrementAndGet() > limitPerMinute) {
-            response.setStatus(429);
-            response.setHeader("Retry-After", "60");
-            return;
-        }
-        chain.doFilter(request, response);
+              }
+              return existing;
+            });
+    if (window.count.incrementAndGet() > limitPerMinute) {
+      response.setStatus(429);
+      response.setHeader("Retry-After", "60");
+      return;
     }
+    chain.doFilter(request, response);
+  }
 
-    private String clientKey(HttpServletRequest request) {
-        String forwarded = request.getHeader("X-Forwarded-For");
-        return forwarded != null && !forwarded.isBlank() ? forwarded : request.getRemoteAddr();
+  private String clientKey(HttpServletRequest request) {
+    String forwarded = request.getHeader("X-Forwarded-For");
+    return forwarded != null && !forwarded.isBlank() ? forwarded : request.getRemoteAddr();
+  }
+
+  private static final class Window {
+    private final long minute;
+    private final AtomicInteger count = new AtomicInteger(0);
+
+    private Window(long minute) {
+      this.minute = minute;
     }
-
-    private static final class Window {
-        private final long minute;
-        private final AtomicInteger count = new AtomicInteger(0);
-
-        private Window(long minute) {
-            this.minute = minute;
-        }
-    }
+  }
 }

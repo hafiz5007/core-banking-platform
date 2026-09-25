@@ -15,55 +15,55 @@ import java.util.UUID;
 @Table(name = "processed_notifications")
 public class ProcessedNotification {
 
-    @Id
-    @Column(nullable = false, updatable = false)
-    private UUID id;
+  @Id
+  @Column(nullable = false, updatable = false)
+  private UUID id;
 
-    @Column(nullable = false, updatable = false, length = 120)
-    private String topic;
+  @Column(nullable = false, updatable = false, length = 120)
+  private String topic;
 
-    @Column(name = "partition_id", nullable = false, updatable = false)
-    private int partitionId;
+  @Column(name = "partition_id", nullable = false, updatable = false)
+  private int partitionId;
 
-    @Column(name = "record_offset", nullable = false, updatable = false)
-    private long recordOffset;
+  @Column(name = "record_offset", nullable = false, updatable = false)
+  private long recordOffset;
 
-    @Column(name = "event_type", nullable = false, updatable = false, length = 60)
-    private String eventType;
+  @Column(name = "event_type", nullable = false, updatable = false, length = 60)
+  private String eventType;
 
-    @Column(name = "processed_at", nullable = false, updatable = false)
-    private Instant processedAt;
+  @Column(name = "processed_at", nullable = false, updatable = false)
+  private Instant processedAt;
 
-    protected ProcessedNotification() {
-        // Required by JPA.
-    }
+  protected ProcessedNotification() {
+    // Required by JPA.
+  }
 
-    public ProcessedNotification(String topic, int partitionId, long recordOffset, String eventType) {
-        this.id = UUID.randomUUID();
-        this.topic = topic;
-        this.partitionId = partitionId;
-        this.recordOffset = recordOffset;
-        this.eventType = eventType;
-        this.processedAt = Instant.now();
-    }
+  public ProcessedNotification(String topic, int partitionId, long recordOffset, String eventType) {
+    this.id = UUID.randomUUID();
+    this.topic = topic;
+    this.partitionId = partitionId;
+    this.recordOffset = recordOffset;
+    this.eventType = eventType;
+    this.processedAt = Instant.now();
+  }
 
-    public UUID getId() {
-        return id;
-    }
+  public UUID getId() {
+    return id;
+  }
 
-    public String getTopic() {
-        return topic;
-    }
+  public String getTopic() {
+    return topic;
+  }
 
-    public int getPartitionId() {
-        return partitionId;
-    }
+  public int getPartitionId() {
+    return partitionId;
+  }
 
-    public long getRecordOffset() {
-        return recordOffset;
-    }
+  public long getRecordOffset() {
+    return recordOffset;
+  }
 
-    public String getEventType() {
-        return eventType;
-    }
+  public String getEventType() {
+    return eventType;
+  }
 }

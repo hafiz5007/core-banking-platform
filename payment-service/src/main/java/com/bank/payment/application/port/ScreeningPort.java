@@ -8,11 +8,11 @@ import com.bank.common.money.Money;
  */
 public interface ScreeningPort {
 
-    ScreeningResult screen(String creditorAccount, Money amount);
+  ScreeningResult screen(String creditorAccount, Money amount);
 
-    record ScreeningResult(boolean blocked, String reason) {
-        public static ScreeningResult clear() {
-            return new ScreeningResult(false, null);
-        }
+  record ScreeningResult(boolean blocked, String reason) {
+    public static ScreeningResult clear() {
+      return new ScreeningResult(false, null);
     }
+  }
 }

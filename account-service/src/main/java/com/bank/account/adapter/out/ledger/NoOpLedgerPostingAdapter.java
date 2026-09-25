@@ -15,11 +15,12 @@ import org.springframework.stereotype.Component;
 @ConditionalOnProperty(name = "ledger.posting", havingValue = "off", matchIfMissing = true)
 public class NoOpLedgerPostingAdapter implements LedgerPostingPort {
 
-    private static final Logger log = LoggerFactory.getLogger(NoOpLedgerPostingAdapter.class);
+  private static final Logger log = LoggerFactory.getLogger(NoOpLedgerPostingAdapter.class);
 
-    @Override
-    public String postDebit(String accountCode, Money amount, String narrative, String idempotencyKey) {
-        log.debug("Ledger posting disabled; not posting debit of {} on {}", amount, accountCode);
-        return null;
-    }
+  @Override
+  public String postDebit(
+      String accountCode, Money amount, String narrative, String idempotencyKey) {
+    log.debug("Ledger posting disabled; not posting debit of {} on {}", amount, accountCode);
+    return null;
+  }
 }

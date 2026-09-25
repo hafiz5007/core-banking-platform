@@ -6,7 +6,7 @@ import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface PaymentAliasRepository extends JpaRepository<PaymentAlias, UUID> {
-    Optional<PaymentAlias> findByAlias(String alias);
+  Optional<PaymentAlias> findByAlias(String alias);
 
-    boolean existsByAlias(String alias);
+  boolean existsByAlias(String alias);
 }

@@ -14,14 +14,14 @@ import java.time.LocalDate;
  * @param dataProcessingConsent must be granted to proceed lawfully
  */
 public record OnboardCustomerRequest(
-        @NotBlank @Size(max = 100) String firstName,
-        @NotBlank @Size(max = 100) String lastName,
-        @NotNull @Past LocalDate dateOfBirth,
-        @NotNull @Pattern(regexp = "^[A-Z]{2}$", message = "nationality must be an ISO-3166 alpha-2 code")
+    @NotBlank @Size(max = 100) String firstName,
+    @NotBlank @Size(max = 100) String lastName,
+    @NotNull @Past LocalDate dateOfBirth,
+    @NotNull
+        @Pattern(regexp = "^[A-Z]{2}$", message = "nationality must be an ISO-3166 alpha-2 code")
         String nationality,
-        @NotBlank @Email @Size(max = 320) String email,
-        @Size(max = 30) String phone,
-        @Size(max = 50) String taxId,
-        boolean dataProcessingConsent,
-        @Size(max = 30) String channel) {
-}
+    @NotBlank @Email @Size(max = 320) String email,
+    @Size(max = 30) String phone,
+    @Size(max = 50) String taxId,
+    boolean dataProcessingConsent,
+    @Size(max = 30) String channel) {}

@@ -9,12 +9,14 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class OpenApiConfig {
 
-    @Bean
-    OpenAPI interestFeeOpenApi() {
-        return new OpenAPI().info(new Info()
+  @Bean
+  OpenAPI interestFeeOpenApi() {
+    return new OpenAPI()
+        .info(
+            new Info()
                 .title("Interest & Fee Service API")
                 .version("v1")
                 .description("Interest accrual & capitalization, fees, end-of-day batch. Sprint 7.")
                 .license(new License().name("Proprietary")));
-    }
+  }
 }

@@ -8,8 +8,8 @@ import org.springframework.context.annotation.Import;
 @Import(FakeLedgerConfig.class)
 class PaymentServiceApplicationTests extends AbstractIntegrationTest {
 
-    @Test
-    void contextLoads() {
-        // Fails if the application context cannot start.
-    }
+  @Test
+  void contextLoads() {
+    // Fails if the application context cannot start.
+  }
 }

@@ -6,7 +6,7 @@ import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface LedgerAccountRepository extends JpaRepository<LedgerAccount, UUID> {
-    Optional<LedgerAccount> findByCode(String code);
+  Optional<LedgerAccount> findByCode(String code);
 
-    boolean existsByCode(String code);
+  boolean existsByCode(String code);
 }

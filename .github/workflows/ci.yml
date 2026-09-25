@@ -60,8 +60,14 @@ jobs:
   security-scan:
     runs-on: ubuntu-latest
     steps:
+      # Gitleaks scans a commit range (`<first pushed commit>^..<head>`), so the parent of the
+      # oldest pushed commit has to be in the clone. The default shallow fetch-depth of 1 leaves it
+      # out, `git log` aborts with "unknown revision", and gitleaks exits non-zero without ever
+      # scanning anything. Full history is what makes the scan real rather than vacuous.
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       # Dependency vulnerability review on PRs (fails on high/critical CVEs in new dependencies).
       - name: Dependency review

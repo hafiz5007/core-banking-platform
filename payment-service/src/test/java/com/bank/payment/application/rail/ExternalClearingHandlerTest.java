@@ -23,51 +23,58 @@ import org.mockito.Mockito;
 /** Unit tests for the external-clearing rail handler with the ledger and clearing ports mocked. */
 class ExternalClearingHandlerTest {
 
-    private LedgerPort ledgerPort;
-    private ClearingPort clearingPort;
-    private ExternalClearingHandler handler;
+  private LedgerPort ledgerPort;
+  private ClearingPort clearingPort;
+  private ExternalClearingHandler handler;
 
-    @BeforeEach
-    void setUp() {
-        ledgerPort = Mockito.mock(LedgerPort.class);
-        clearingPort = Mockito.mock(ClearingPort.class);
-        handler = new ExternalClearingHandler(
-                ledgerPort, clearingPort, new Iso20022MessageFactory(), "SETTLEMENT");
-    }
+  @BeforeEach
+  void setUp() {
+    ledgerPort = Mockito.mock(LedgerPort.class);
+    clearingPort = Mockito.mock(ClearingPort.class);
+    handler =
+        new ExternalClearingHandler(
+            ledgerPort, clearingPort, new Iso20022MessageFactory(), "SETTLEMENT");
+  }
 
-    private Payment payment() {
-        return Payment.received("idem-3", PaymentType.RTGS, "1000",
-                "GB29NWBK60161331926819", Money.of("100.00", "GBP"), "Invoice");
-    }
+  private Payment payment() {
+    return Payment.received(
+        "idem-3",
+        PaymentType.RTGS,
+        "1000",
+        "GB29NWBK60161331926819",
+        Money.of("100.00", "GBP"),
+        "Invoice");
+  }
 
-    @Test
-    void acceptedSchemeSettlesPayment() {
-        UUID entryId = UUID.randomUUID();
-        when(ledgerPort.postTransfer(any())).thenReturn(entryId);
-        when(clearingPort.submit(eq(PaymentType.RTGS), any()))
-                .thenReturn(ClearingResult.accepted("RTGS-REF-1"));
+  @Test
+  void acceptedSchemeSettlesPayment() {
+    UUID entryId = UUID.randomUUID();
+    when(ledgerPort.postTransfer(any())).thenReturn(entryId);
+    when(clearingPort.submit(eq(PaymentType.RTGS), any()))
+        .thenReturn(ClearingResult.accepted("RTGS-REF-1"));
 
-        Payment payment = payment();
-        handler.execute(payment);
+    Payment payment = payment();
+    handler.execute(payment);
 
-        assertThat(payment.getStatus()).isEqualTo(PaymentStatus.SETTLED);
-        assertThat(payment.getLedgerEntryId()).isEqualTo(entryId);
-        assertThat(payment.getSchemeReference()).isEqualTo("RTGS-REF-1");
-    }
+    assertThat(payment.getStatus()).isEqualTo(PaymentStatus.SETTLED);
+    assertThat(payment.getLedgerEntryId()).isEqualTo(entryId);
+    assertThat(payment.getSchemeReference()).isEqualTo("RTGS-REF-1");
+  }
 
-    @Test
-    void rejectedSchemeReversesAndThrows() {
-        UUID entryId = UUID.randomUUID();
-        UUID reversalId = UUID.randomUUID();
-        when(ledgerPort.postTransfer(any())).thenReturn(entryId);
-        when(clearingPort.submit(any(), any())).thenReturn(ClearingResult.rejected("beneficiary rejected"));
-        when(ledgerPort.reverse(eq(entryId), any())).thenReturn(reversalId);
+  @Test
+  void rejectedSchemeReversesAndThrows() {
+    UUID entryId = UUID.randomUUID();
+    UUID reversalId = UUID.randomUUID();
+    when(ledgerPort.postTransfer(any())).thenReturn(entryId);
+    when(clearingPort.submit(any(), any()))
+        .thenReturn(ClearingResult.rejected("beneficiary rejected"));
+    when(ledgerPort.reverse(eq(entryId), any())).thenReturn(reversalId);
 
-        Payment payment = payment();
-        assertThatThrownBy(() -> handler.execute(payment))
-                .isInstanceOf(PaymentRailException.class)
-                .hasMessageContaining("Scheme rejected");
+    Payment payment = payment();
+    assertThatThrownBy(() -> handler.execute(payment))
+        .isInstanceOf(PaymentRailException.class)
+        .hasMessageContaining("Scheme rejected");
 
-        verify(ledgerPort).reverse(eq(entryId), any());
-    }
+    verify(ledgerPort).reverse(eq(entryId), any());
+  }
 }

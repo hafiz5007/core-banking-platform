@@ -6,15 +6,13 @@ package com.bank.customer.application.port;
  */
 public interface ScreeningPort {
 
-    ScreeningResult screen(ScreeningRequest request);
+  ScreeningResult screen(ScreeningRequest request);
 
-    record ScreeningRequest(String firstName, String lastName, String nationality) {
-    }
+  record ScreeningRequest(String firstName, String lastName, String nationality) {}
 
-    /**
-     * @param match   true if the party matched a watchlist
-     * @param caseRef reference to the opened investigation case (null when no match)
-     */
-    record ScreeningResult(boolean match, String caseRef) {
-    }
+  /**
+   * @param match true if the party matched a watchlist
+   * @param caseRef reference to the opened investigation case (null when no match)
+   */
+  record ScreeningResult(boolean match, String caseRef) {}
 }

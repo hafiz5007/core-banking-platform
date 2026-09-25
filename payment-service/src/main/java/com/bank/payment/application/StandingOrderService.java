@@ -24,53 +24,67 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class StandingOrderService {
 
-    private static final Logger log = LoggerFactory.getLogger(StandingOrderService.class);
+  private static final Logger log = LoggerFactory.getLogger(StandingOrderService.class);
 
-    private final StandingOrderRepository repository;
-    private final PaymentService paymentService;
+  private final StandingOrderRepository repository;
+  private final PaymentService paymentService;
 
-    public StandingOrderService(StandingOrderRepository repository, PaymentService paymentService) {
-        this.repository = repository;
-        this.paymentService = paymentService;
+  public StandingOrderService(StandingOrderRepository repository, PaymentService paymentService) {
+    this.repository = repository;
+    this.paymentService = paymentService;
+  }
+
+  @Transactional
+  public StandingOrder create(
+      String debtorAccount,
+      String creditorAccount,
+      Money amount,
+      String narrative,
+      Frequency frequency,
+      LocalDate startDate,
+      LocalDate endDate) {
+    StandingOrder order =
+        StandingOrder.create(
+            debtorAccount, creditorAccount, amount, narrative, frequency, startDate, endDate);
+    return repository.save(order);
+  }
+
+  @Transactional(readOnly = true)
+  public StandingOrder get(UUID id) {
+    return repository
+        .findById(id)
+        .orElseThrow(() -> new ResourceNotFoundException("Standing order not found: " + id));
+  }
+
+  @Transactional
+  public StandingOrder cancel(UUID id) {
+    StandingOrder order = get(id);
+    order.cancel();
+    return repository.save(order);
+  }
+
+  /** Execute every standing order due on the given date. Returns the number executed. */
+  @Transactional
+  public int runDue(LocalDate on) {
+    List<StandingOrder> due =
+        repository.findByStatusAndNextRunDateLessThanEqual(StandingOrderStatus.ACTIVE, on);
+    int executed = 0;
+    for (StandingOrder order : due) {
+      String key = "so-" + order.getId() + "-" + order.getNextRunDate();
+      paymentService.initiate(
+          new InitiatePaymentCommand(
+              key,
+              PaymentType.INTRABANK,
+              order.getDebtorAccount(),
+              order.getCreditorAccount(),
+              order.money(),
+              order.getNarrative(),
+              null));
+      order.advance();
+      repository.save(order);
+      executed++;
     }
-
-    @Transactional
-    public StandingOrder create(String debtorAccount, String creditorAccount, Money amount,
-                                String narrative, Frequency frequency, LocalDate startDate, LocalDate endDate) {
-        StandingOrder order = StandingOrder.create(debtorAccount, creditorAccount, amount,
-                narrative, frequency, startDate, endDate);
-        return repository.save(order);
-    }
-
-    @Transactional(readOnly = true)
-    public StandingOrder get(UUID id) {
-        return repository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Standing order not found: " + id));
-    }
-
-    @Transactional
-    public StandingOrder cancel(UUID id) {
-        StandingOrder order = get(id);
-        order.cancel();
-        return repository.save(order);
-    }
-
-    /** Execute every standing order due on the given date. Returns the number executed. */
-    @Transactional
-    public int runDue(LocalDate on) {
-        List<StandingOrder> due = repository.findByStatusAndNextRunDateLessThanEqual(
-                StandingOrderStatus.ACTIVE, on);
-        int executed = 0;
-        for (StandingOrder order : due) {
-            String key = "so-" + order.getId() + "-" + order.getNextRunDate();
-            paymentService.initiate(new InitiatePaymentCommand(
-                    key, PaymentType.INTRABANK, order.getDebtorAccount(), order.getCreditorAccount(),
-                    order.money(), order.getNarrative(), null));
-            order.advance();
-            repository.save(order);
-            executed++;
-        }
-        log.info("Standing orders executed on {}: {}", on, executed);
-        return executed;
-    }
+    log.info("Standing orders executed on {}: {}", on, executed);
+    return executed;
+  }
 }

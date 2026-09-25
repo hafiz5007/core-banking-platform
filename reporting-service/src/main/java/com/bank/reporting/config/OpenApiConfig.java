@@ -9,12 +9,15 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class OpenApiConfig {
 
-    @Bean
-    OpenAPI reportingOpenApi() {
-        return new OpenAPI().info(new Info()
+  @Bean
+  OpenAPI reportingOpenApi() {
+    return new OpenAPI()
+        .info(
+            new Info()
                 .title("Reporting Service API")
                 .version("v1")
-                .description("Operational & regulatory reporting from a metrics projection. Sprint 10.")
+                .description(
+                    "Operational & regulatory reporting from a metrics projection. Sprint 10.")
                 .license(new License().name("Proprietary")));
-    }
+  }
 }

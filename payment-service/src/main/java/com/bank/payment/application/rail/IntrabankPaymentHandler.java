@@ -16,22 +16,27 @@ import org.springframework.stereotype.Component;
 @Component
 public class IntrabankPaymentHandler implements PaymentRailHandler {
 
-    private final LedgerPort ledgerPort;
+  private final LedgerPort ledgerPort;
 
-    public IntrabankPaymentHandler(LedgerPort ledgerPort) {
-        this.ledgerPort = ledgerPort;
-    }
+  public IntrabankPaymentHandler(LedgerPort ledgerPort) {
+    this.ledgerPort = ledgerPort;
+  }
 
-    @Override
-    public Set<PaymentType> supportedTypes() {
-        return Set.of(PaymentType.INTRABANK);
-    }
+  @Override
+  public Set<PaymentType> supportedTypes() {
+    return Set.of(PaymentType.INTRABANK);
+  }
 
-    @Override
-    public void execute(Payment payment) {
-        UUID entryId = ledgerPort.postTransfer(new TransferCommand(
-                "pay-" + payment.getIdempotencyKey(), payment.getNarrative(),
-                payment.getDebtorAccount(), payment.getCreditorAccount(), payment.money()));
-        payment.markPosted(entryId);
-    }
+  @Override
+  public void execute(Payment payment) {
+    UUID entryId =
+        ledgerPort.postTransfer(
+            new TransferCommand(
+                "pay-" + payment.getIdempotencyKey(),
+                payment.getNarrative(),
+                payment.getDebtorAccount(),
+                payment.getCreditorAccount(),
+                payment.money()));
+    payment.markPosted(entryId);
+  }
 }

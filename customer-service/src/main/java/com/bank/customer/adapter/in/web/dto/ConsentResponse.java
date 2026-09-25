@@ -7,16 +7,20 @@ import java.util.UUID;
 
 /** Response view of a recorded consent. */
 public record ConsentResponse(
-        UUID id,
-        UUID customerId,
-        ConsentType consentType,
-        boolean granted,
-        String channel,
-        Instant recordedAt) {
+    UUID id,
+    UUID customerId,
+    ConsentType consentType,
+    boolean granted,
+    String channel,
+    Instant recordedAt) {
 
-    public static ConsentResponse from(Consent c) {
-        return new ConsentResponse(
-                c.getId(), c.getCustomerId(), c.getConsentType(),
-                c.isGranted(), c.getChannel(), c.getRecordedAt());
-    }
+  public static ConsentResponse from(Consent c) {
+    return new ConsentResponse(
+        c.getId(),
+        c.getCustomerId(),
+        c.getConsentType(),
+        c.isGranted(),
+        c.getChannel(),
+        c.getRecordedAt());
+  }
 }

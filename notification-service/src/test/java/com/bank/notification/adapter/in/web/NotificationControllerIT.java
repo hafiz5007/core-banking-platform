@@ -18,22 +18,27 @@ import org.springframework.http.ResponseEntity;
 /** End-to-end test of OTP issuance and verification (wrong code is rejected). */
 class NotificationControllerIT extends AbstractIntegrationTest {
 
-    @Autowired
-    TestRestTemplate rest;
+  @Autowired TestRestTemplate rest;
 
-    @Test
-    void issuesOtpAndRejectsWrongCode() {
-        ResponseEntity<OtpIssuedResponse> issued = rest.postForEntity("/api/v1/notifications/otp",
-                new OtpRequest("user@example.com", NotificationChannel.EMAIL), OtpIssuedResponse.class);
-        assertThat(issued.getStatusCode()).isEqualTo(HttpStatus.CREATED);
-        UUID challengeId = issued.getBody().challengeId();
-        assertThat(challengeId).isNotNull();
+  @Test
+  void issuesOtpAndRejectsWrongCode() {
+    ResponseEntity<OtpIssuedResponse> issued =
+        rest.postForEntity(
+            "/api/v1/notifications/otp",
+            new OtpRequest("user@example.com", NotificationChannel.EMAIL),
+            OtpIssuedResponse.class);
+    assertThat(issued.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    UUID challengeId = issued.getBody().challengeId();
+    assertThat(challengeId).isNotNull();
 
-        // A wrong code must not verify (the real code is delivered out-of-band, not returned).
-        ResponseEntity<OtpVerifyResponse> verify = rest.postForEntity("/api/v1/notifications/otp/verify",
-                new OtpVerifyRequest(challengeId, "000000"), OtpVerifyResponse.class);
-        assertThat(verify.getStatusCode()).isEqualTo(HttpStatus.OK);
-        // The probability the random code is exactly 000000 is negligible.
-        assertThat(verify.getBody().verified()).isFalse();
-    }
+    // A wrong code must not verify (the real code is delivered out-of-band, not returned).
+    ResponseEntity<OtpVerifyResponse> verify =
+        rest.postForEntity(
+            "/api/v1/notifications/otp/verify",
+            new OtpVerifyRequest(challengeId, "000000"),
+            OtpVerifyResponse.class);
+    assertThat(verify.getStatusCode()).isEqualTo(HttpStatus.OK);
+    // The probability the random code is exactly 000000 is negligible.
+    assertThat(verify.getBody().verified()).isFalse();
+  }
 }

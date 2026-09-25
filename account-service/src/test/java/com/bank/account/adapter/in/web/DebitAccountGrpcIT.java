@@ -34,139 +34,162 @@ import org.springframework.test.context.DynamicPropertySource;
  */
 class DebitAccountGrpcIT extends AbstractIntegrationTest {
 
-    private static final FakeLedgerPostingServer LEDGER = new FakeLedgerPostingServer();
+  private static final FakeLedgerPostingServer LEDGER = new FakeLedgerPostingServer();
 
-    @DynamicPropertySource
-    static void pointAtTheFakeLedger(DynamicPropertyRegistry registry) {
-        registry.add("ledger.posting", () -> "grpc");
-        registry.add("ledger.grpc.target", LEDGER::target);
-        registry.add("ledger.settlement-account", () -> "SETTLEMENT");
-    }
+  @DynamicPropertySource
+  static void pointAtTheFakeLedger(DynamicPropertyRegistry registry) {
+    registry.add("ledger.posting", () -> "grpc");
+    registry.add("ledger.grpc.target", LEDGER::target);
+    registry.add("ledger.settlement-account", () -> "SETTLEMENT");
+  }
 
-    @AfterAll
-    static void stopLedger() {
-        LEDGER.close();
-    }
+  @AfterAll
+  static void stopLedger() {
+    LEDGER.close();
+  }
 
-    @Autowired
-    TestRestTemplate rest;
+  @Autowired TestRestTemplate rest;
 
-    @BeforeEach
-    void resetLedger() {
-        LEDGER.reset();
-    }
+  @BeforeEach
+  void resetLedger() {
+    LEDGER.reset();
+  }
 
-    /** Opens an account on a product carrying a 500.00 overdraft, so it has funds to debit. */
-    private AccountResponse openAccountWithOverdraft() {
-        String code = "CUR-" + UUID.randomUUID().toString().substring(0, 8);
-        rest.postForEntity("/api/v1/products",
-                new CreateProductRequest(code, "Current with overdraft", AccountType.CURRENT, "USD",
-                        new BigDecimal("0.00"), new BigDecimal("0.00"), new BigDecimal("0.00"),
-                        new BigDecimal("10000.00"), new BigDecimal("500.00")),
-                ProductResponse.class);
+  /** Opens an account on a product carrying a 500.00 overdraft, so it has funds to debit. */
+  private AccountResponse openAccountWithOverdraft() {
+    String code = "CUR-" + UUID.randomUUID().toString().substring(0, 8);
+    rest.postForEntity(
+        "/api/v1/products",
+        new CreateProductRequest(
+            code,
+            "Current with overdraft",
+            AccountType.CURRENT,
+            "USD",
+            new BigDecimal("0.00"),
+            new BigDecimal("0.00"),
+            new BigDecimal("0.00"),
+            new BigDecimal("10000.00"),
+            new BigDecimal("500.00")),
+        ProductResponse.class);
 
-        return rest.postForEntity("/api/v1/accounts/from-product",
-                new OpenFromProductRequest(code, UUID.randomUUID(), List.of(), MandateType.SINGLE),
-                AccountResponse.class).getBody();
-    }
+    return rest.postForEntity(
+            "/api/v1/accounts/from-product",
+            new OpenFromProductRequest(code, UUID.randomUUID(), List.of(), MandateType.SINGLE),
+            AccountResponse.class)
+        .getBody();
+  }
 
-    private ResponseEntity<AccountResponse> debit(UUID accountId, String amount, String key) {
-        return rest.postForEntity("/api/v1/accounts/" + accountId + "/debit",
-                new DebitAccountRequest(key, new BigDecimal(amount), "USD", "ATM withdrawal"),
-                AccountResponse.class);
-    }
+  private ResponseEntity<AccountResponse> debit(UUID accountId, String amount, String key) {
+    return rest.postForEntity(
+        "/api/v1/accounts/" + accountId + "/debit",
+        new DebitAccountRequest(key, new BigDecimal(amount), "USD", "ATM withdrawal"),
+        AccountResponse.class);
+  }
 
-    @Test
-    void debitingAnAccountPostsABalancedEntryToTheLedgerOverGrpc() {
-        AccountResponse account = openAccountWithOverdraft();
-        String key = "debit-" + UUID.randomUUID();
+  @Test
+  void debitingAnAccountPostsABalancedEntryToTheLedgerOverGrpc() {
+    AccountResponse account = openAccountWithOverdraft();
+    String key = "debit-" + UUID.randomUUID();
 
-        ResponseEntity<AccountResponse> response = debit(account.id(), "125.00", key);
+    ResponseEntity<AccountResponse> response = debit(account.id(), "125.00", key);
 
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(new BigDecimal(response.getBody().balance())).isEqualByComparingTo("-125.00");
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(new BigDecimal(response.getBody().balance())).isEqualByComparingTo("-125.00");
 
-        // The ledger really was called, over the wire, with a balanced pair.
-        assertThat(LEDGER.received()).hasSize(1);
-        PostJournalEntryRequest posted = LEDGER.lastRequest();
-        assertThat(posted.getIdempotencyKey()).isEqualTo(key);
-        assertThat(posted.getNarrative()).isEqualTo("ATM withdrawal");
-        assertThat(posted.getLinesList()).hasSize(2);
-        assertThat(posted.getLinesList())
-                .extracting(JournalLine::getAccountCode, JournalLine::getDirection, JournalLine::getAmount)
-                .containsExactly(
-                        org.assertj.core.groups.Tuple.tuple(
-                                account.accountNumber(), Direction.DEBIT, "125.00"),
-                        org.assertj.core.groups.Tuple.tuple("SETTLEMENT", Direction.CREDIT, "125.00"));
-    }
+    // The ledger really was called, over the wire, with a balanced pair.
+    assertThat(LEDGER.received()).hasSize(1);
+    PostJournalEntryRequest posted = LEDGER.lastRequest();
+    assertThat(posted.getIdempotencyKey()).isEqualTo(key);
+    assertThat(posted.getNarrative()).isEqualTo("ATM withdrawal");
+    assertThat(posted.getLinesList()).hasSize(2);
+    assertThat(posted.getLinesList())
+        .extracting(JournalLine::getAccountCode, JournalLine::getDirection, JournalLine::getAmount)
+        .containsExactly(
+            org.assertj.core.groups.Tuple.tuple(account.accountNumber(), Direction.DEBIT, "125.00"),
+            org.assertj.core.groups.Tuple.tuple("SETTLEMENT", Direction.CREDIT, "125.00"));
+  }
 
-    @Test
-    void theDebitAndTheCreditAreEqualAndOpposite() {
-        AccountResponse account = openAccountWithOverdraft();
+  @Test
+  void theDebitAndTheCreditAreEqualAndOpposite() {
+    AccountResponse account = openAccountWithOverdraft();
 
-        debit(account.id(), "12.34", "debit-" + UUID.randomUUID());
+    debit(account.id(), "12.34", "debit-" + UUID.randomUUID());
 
-        List<JournalLine> lines = LEDGER.lastRequest().getLinesList();
-        assertThat(lines).extracting(JournalLine::getAmount).containsOnly("12.34");
-        assertThat(lines).extracting(JournalLine::getDirection)
-                .containsExactlyInAnyOrder(Direction.DEBIT, Direction.CREDIT);
-    }
+    List<JournalLine> lines = LEDGER.lastRequest().getLinesList();
+    assertThat(lines).extracting(JournalLine::getAmount).containsOnly("12.34");
+    assertThat(lines)
+        .extracting(JournalLine::getDirection)
+        .containsExactlyInAnyOrder(Direction.DEBIT, Direction.CREDIT);
+  }
 
-    @Test
-    void aDebitBeyondAvailableFundsIsRejectedAndNeverReachesTheLedger() {
-        AccountResponse account = openAccountWithOverdraft();
+  @Test
+  void aDebitBeyondAvailableFundsIsRejectedAndNeverReachesTheLedger() {
+    AccountResponse account = openAccountWithOverdraft();
 
-        ResponseEntity<String> response = rest.postForEntity("/api/v1/accounts/" + account.id() + "/debit",
-                new DebitAccountRequest("debit-" + UUID.randomUUID(), new BigDecimal("500.01"), "USD", "Too much"),
-                String.class);
+    ResponseEntity<String> response =
+        rest.postForEntity(
+            "/api/v1/accounts/" + account.id() + "/debit",
+            new DebitAccountRequest(
+                "debit-" + UUID.randomUUID(), new BigDecimal("500.01"), "USD", "Too much"),
+            String.class);
 
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
-        assertThat(LEDGER.received()).isEmpty();
-    }
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+    assertThat(LEDGER.received()).isEmpty();
+  }
 
-    @Test
-    void aLedgerRejectionRollsBackTheBalanceChange() {
-        AccountResponse account = openAccountWithOverdraft();
-        LEDGER.failWith(Status.FAILED_PRECONDITION);
+  @Test
+  void aLedgerRejectionRollsBackTheBalanceChange() {
+    AccountResponse account = openAccountWithOverdraft();
+    LEDGER.failWith(Status.FAILED_PRECONDITION);
 
-        ResponseEntity<String> response = rest.postForEntity("/api/v1/accounts/" + account.id() + "/debit",
-                new DebitAccountRequest("debit-" + UUID.randomUUID(), new BigDecimal("50.00"), "USD", "Rejected"),
-                String.class);
+    ResponseEntity<String> response =
+        rest.postForEntity(
+            "/api/v1/accounts/" + account.id() + "/debit",
+            new DebitAccountRequest(
+                "debit-" + UUID.randomUUID(), new BigDecimal("50.00"), "USD", "Rejected"),
+            String.class);
 
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
 
-        // The account and the ledger must not disagree: the balance change is rolled back.
-        LEDGER.reset();
-        AccountResponse after = rest.getForObject("/api/v1/accounts/" + account.id(), AccountResponse.class);
-        assertThat(new BigDecimal(after.balance())).isEqualByComparingTo("0.00");
-    }
+    // The account and the ledger must not disagree: the balance change is rolled back.
+    LEDGER.reset();
+    AccountResponse after =
+        rest.getForObject("/api/v1/accounts/" + account.id(), AccountResponse.class);
+    assertThat(new BigDecimal(after.balance())).isEqualByComparingTo("0.00");
+  }
 
-    @Test
-    void anUnreachableLedgerFailsTheDebitRatherThanLosingIt() {
-        AccountResponse account = openAccountWithOverdraft();
-        LEDGER.failWith(Status.UNAVAILABLE);
+  @Test
+  void anUnreachableLedgerFailsTheDebitRatherThanLosingIt() {
+    AccountResponse account = openAccountWithOverdraft();
+    LEDGER.failWith(Status.UNAVAILABLE);
 
-        ResponseEntity<String> response = rest.postForEntity("/api/v1/accounts/" + account.id() + "/debit",
-                new DebitAccountRequest("debit-" + UUID.randomUUID(), new BigDecimal("50.00"), "USD", "Outage"),
-                String.class);
+    ResponseEntity<String> response =
+        rest.postForEntity(
+            "/api/v1/accounts/" + account.id() + "/debit",
+            new DebitAccountRequest(
+                "debit-" + UUID.randomUUID(), new BigDecimal("50.00"), "USD", "Outage"),
+            String.class);
 
-        // Infrastructure faults are 5xx, not a business rejection shown to the customer.
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+    // Infrastructure faults are 5xx, not a business rejection shown to the customer.
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
 
-        LEDGER.reset();
-        AccountResponse after = rest.getForObject("/api/v1/accounts/" + account.id(), AccountResponse.class);
-        assertThat(new BigDecimal(after.balance())).isEqualByComparingTo("0.00");
-    }
+    LEDGER.reset();
+    AccountResponse after =
+        rest.getForObject("/api/v1/accounts/" + account.id(), AccountResponse.class);
+    assertThat(new BigDecimal(after.balance())).isEqualByComparingTo("0.00");
+  }
 
-    @Test
-    void anOverLongIdempotencyKeyIsRejectedBeforeAnyLedgerCall() {
-        AccountResponse account = openAccountWithOverdraft();
+  @Test
+  void anOverLongIdempotencyKeyIsRejectedBeforeAnyLedgerCall() {
+    AccountResponse account = openAccountWithOverdraft();
 
-        ResponseEntity<String> response = rest.postForEntity("/api/v1/accounts/" + account.id() + "/debit",
-                new DebitAccountRequest("k".repeat(81), new BigDecimal("10.00"), "USD", "Too long"),
-                String.class);
+    ResponseEntity<String> response =
+        rest.postForEntity(
+            "/api/v1/accounts/" + account.id() + "/debit",
+            new DebitAccountRequest("k".repeat(81), new BigDecimal("10.00"), "USD", "Too long"),
+            String.class);
 
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-        assertThat(LEDGER.received()).isEmpty();
-    }
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    assertThat(LEDGER.received()).isEmpty();
+  }
 }

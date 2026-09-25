@@ -11,42 +11,43 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class ApprovalService {
 
-    private final ApprovalRequestRepository repository;
-    private final AuditService auditService;
+  private final ApprovalRequestRepository repository;
+  private final AuditService auditService;
 
-    public ApprovalService(ApprovalRequestRepository repository, AuditService auditService) {
-        this.repository = repository;
-        this.auditService = auditService;
-    }
+  public ApprovalService(ApprovalRequestRepository repository, AuditService auditService) {
+    this.repository = repository;
+    this.auditService = auditService;
+  }
 
-    @Transactional
-    public ApprovalRequest submit(String action, String payload, String maker) {
-        ApprovalRequest request = repository.save(new ApprovalRequest(action, payload, maker));
-        auditService.record(maker, "APPROVAL_SUBMITTED", action, request.getId().toString());
-        return request;
-    }
+  @Transactional
+  public ApprovalRequest submit(String action, String payload, String maker) {
+    ApprovalRequest request = repository.save(new ApprovalRequest(action, payload, maker));
+    auditService.record(maker, "APPROVAL_SUBMITTED", action, request.getId().toString());
+    return request;
+  }
 
-    @Transactional
-    public ApprovalRequest approve(UUID id, String checker) {
-        ApprovalRequest request = get(id);
-        request.approve(checker);
-        repository.save(request);
-        auditService.record(checker, "APPROVAL_APPROVED", request.getAction(), id.toString());
-        return request;
-    }
+  @Transactional
+  public ApprovalRequest approve(UUID id, String checker) {
+    ApprovalRequest request = get(id);
+    request.approve(checker);
+    repository.save(request);
+    auditService.record(checker, "APPROVAL_APPROVED", request.getAction(), id.toString());
+    return request;
+  }
 
-    @Transactional
-    public ApprovalRequest reject(UUID id, String checker, String reason) {
-        ApprovalRequest request = get(id);
-        request.reject(checker, reason);
-        repository.save(request);
-        auditService.record(checker, "APPROVAL_REJECTED", request.getAction(), id.toString());
-        return request;
-    }
+  @Transactional
+  public ApprovalRequest reject(UUID id, String checker, String reason) {
+    ApprovalRequest request = get(id);
+    request.reject(checker, reason);
+    repository.save(request);
+    auditService.record(checker, "APPROVAL_REJECTED", request.getAction(), id.toString());
+    return request;
+  }
 
-    @Transactional(readOnly = true)
-    public ApprovalRequest get(UUID id) {
-        return repository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Approval request not found: " + id));
-    }
+  @Transactional(readOnly = true)
+  public ApprovalRequest get(UUID id) {
+    return repository
+        .findById(id)
+        .orElseThrow(() -> new ResourceNotFoundException("Approval request not found: " + id));
+  }
 }

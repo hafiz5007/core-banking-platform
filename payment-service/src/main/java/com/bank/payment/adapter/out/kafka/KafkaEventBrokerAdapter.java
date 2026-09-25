@@ -24,36 +24,43 @@ import org.springframework.stereotype.Component;
 @ConditionalOnProperty(name = "kafka.enabled", havingValue = "true")
 public class KafkaEventBrokerAdapter implements EventBrokerPort {
 
-    private static final Logger log = LoggerFactory.getLogger(KafkaEventBrokerAdapter.class);
+  private static final Logger log = LoggerFactory.getLogger(KafkaEventBrokerAdapter.class);
 
-    private final KafkaTemplate<String, String> kafkaTemplate;
-    private final Duration sendTimeout;
+  private final KafkaTemplate<String, String> kafkaTemplate;
+  private final Duration sendTimeout;
 
-    public KafkaEventBrokerAdapter(KafkaTemplate<String, String> kafkaTemplate,
-                                   @Value("${kafka.send-timeout-ms:10000}") long sendTimeoutMs) {
-        this.kafkaTemplate = kafkaTemplate;
-        this.sendTimeout = Duration.ofMillis(sendTimeoutMs);
+  public KafkaEventBrokerAdapter(
+      KafkaTemplate<String, String> kafkaTemplate,
+      @Value("${kafka.send-timeout-ms:10000}") long sendTimeoutMs) {
+    this.kafkaTemplate = kafkaTemplate;
+    this.sendTimeout = Duration.ofMillis(sendTimeoutMs);
+  }
+
+  @Override
+  public void publish(String topic, String key, String payload) {
+    try {
+      SendResult<String, String> result =
+          kafkaTemplate
+              .send(topic, key, payload)
+              .get(sendTimeout.toMillis(), TimeUnit.MILLISECONDS);
+      log.debug(
+          "Published to {}-{}@{} key={}",
+          topic,
+          result.getRecordMetadata().partition(),
+          result.getRecordMetadata().offset(),
+          key);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new EventPublishException("Interrupted publishing to " + topic, e);
+    } catch (ExecutionException | TimeoutException e) {
+      throw new EventPublishException("Broker did not accept the event for " + topic, e);
     }
+  }
 
-    @Override
-    public void publish(String topic, String key, String payload) {
-        try {
-            SendResult<String, String> result = kafkaTemplate.send(topic, key, payload)
-                    .get(sendTimeout.toMillis(), TimeUnit.MILLISECONDS);
-            log.debug("Published to {}-{}@{} key={}", topic,
-                    result.getRecordMetadata().partition(), result.getRecordMetadata().offset(), key);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new EventPublishException("Interrupted publishing to " + topic, e);
-        } catch (ExecutionException | TimeoutException e) {
-            throw new EventPublishException("Broker did not accept the event for " + topic, e);
-        }
+  /** Raised when the broker did not acknowledge an event; the outbox row stays PENDING. */
+  public static class EventPublishException extends RuntimeException {
+    public EventPublishException(String message, Throwable cause) {
+      super(message, cause);
     }
-
-    /** Raised when the broker did not acknowledge an event; the outbox row stays PENDING. */
-    public static class EventPublishException extends RuntimeException {
-        public EventPublishException(String message, Throwable cause) {
-            super(message, cause);
-        }
-    }
+  }
 }

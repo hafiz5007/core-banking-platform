@@ -8,17 +8,17 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 /**
- * Default no-op ledger provisioning for local development and tests. Set
- * {@code ledger.provisioning=http} to actually create GL accounts in ledger-service.
+ * Default no-op ledger provisioning for local development and tests. Set {@code
+ * ledger.provisioning=http} to actually create GL accounts in ledger-service.
  */
 @Component
 @ConditionalOnProperty(name = "ledger.provisioning", havingValue = "off", matchIfMissing = true)
 public class NoOpLedgerProvisioningAdapter implements LedgerProvisioningPort {
 
-    private static final Logger log = LoggerFactory.getLogger(NoOpLedgerProvisioningAdapter.class);
+  private static final Logger log = LoggerFactory.getLogger(NoOpLedgerProvisioningAdapter.class);
 
-    @Override
-    public void provisionAccount(String code, String name, Currency currency) {
-        log.debug("Ledger provisioning disabled; skipping GL account creation for {}", code);
-    }
+  @Override
+  public void provisionAccount(String code, String name, Currency currency) {
+    log.debug("Ledger provisioning disabled; skipping GL account creation for {}", code);
+  }
 }

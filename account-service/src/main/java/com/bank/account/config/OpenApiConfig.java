@@ -9,12 +9,14 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class OpenApiConfig {
 
-    @Bean
-    OpenAPI accountServiceOpenApi() {
-        return new OpenAPI().info(new Info()
+  @Bean
+  OpenAPI accountServiceOpenApi() {
+    return new OpenAPI()
+        .info(
+            new Info()
                 .title("Account Service API")
                 .version("v1")
                 .description("Open and read deposit accounts. Sprint 0 walking skeleton.")
                 .license(new License().name("Proprietary")));
-    }
+  }
 }

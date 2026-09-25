@@ -7,8 +7,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 @SpringBootTest
 class ApiGatewayApplicationTests {
 
-    @Test
-    void contextLoads() {
-        // Fails if the gateway application context cannot start.
-    }
+  @Test
+  void contextLoads() {
+    // Fails if the gateway application context cannot start.
+  }
 }

@@ -22,29 +22,41 @@ import org.springframework.http.ResponseEntity;
 /** Verifies organization capture from the tenant header and the change log (ADR-001/002). */
 class OrganizationAndChangeLogIT extends AbstractIntegrationTest {
 
-    @Autowired
-    TestRestTemplate rest;
+  @Autowired TestRestTemplate rest;
 
-    @Test
-    void capturesOrganizationAndLogsOnboarding() {
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("X-Organization-Id", "ORG-BANKX");
-        var request = new OnboardCustomerRequest("Ada", "Lovelace", LocalDate.of(1990, 1, 1),
-                "GB", "ada@example.com", "+441234567890", "TAX123", true, "WEB");
+  @Test
+  void capturesOrganizationAndLogsOnboarding() {
+    HttpHeaders headers = new HttpHeaders();
+    headers.set("X-Organization-Id", "ORG-BANKX");
+    var request =
+        new OnboardCustomerRequest(
+            "Ada",
+            "Lovelace",
+            LocalDate.of(1990, 1, 1),
+            "GB",
+            "ada@example.com",
+            "+441234567890",
+            "TAX123",
+            true,
+            "WEB");
 
-        ResponseEntity<CustomerResponse> created = rest.postForEntity(
-                "/api/v1/customers", new HttpEntity<>(request, headers), CustomerResponse.class);
+    ResponseEntity<CustomerResponse> created =
+        rest.postForEntity(
+            "/api/v1/customers", new HttpEntity<>(request, headers), CustomerResponse.class);
 
-        assertThat(created.getStatusCode()).isEqualTo(HttpStatus.CREATED);
-        assertThat(created.getBody().organizationId()).isEqualTo("ORG-BANKX");
+    assertThat(created.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    assertThat(created.getBody().organizationId()).isEqualTo("ORG-BANKX");
 
-        ResponseEntity<List<ChangeLogResponse>> log = rest.exchange(
-                "/api/v1/customers/" + created.getBody().id() + "/change-log",
-                HttpMethod.GET, null, new ParameterizedTypeReference<>() { });
+    ResponseEntity<List<ChangeLogResponse>> log =
+        rest.exchange(
+            "/api/v1/customers/" + created.getBody().id() + "/change-log",
+            HttpMethod.GET,
+            null,
+            new ParameterizedTypeReference<>() {});
 
-        assertThat(log.getBody()).isNotEmpty();
-        assertThat(log.getBody().get(0).changeType()).isEqualTo(ChangeType.CREATE);
-        assertThat(log.getBody().get(0).organizationId()).isEqualTo("ORG-BANKX");
-        assertThat(log.getBody().get(0).entityType()).isEqualTo("Customer");
-    }
+    assertThat(log.getBody()).isNotEmpty();
+    assertThat(log.getBody().get(0).changeType()).isEqualTo(ChangeType.CREATE);
+    assertThat(log.getBody().get(0).organizationId()).isEqualTo("ORG-BANKX");
+    assertThat(log.getBody().get(0).entityType()).isEqualTo("Customer");
+  }
 }

@@ -23,32 +23,32 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/reports")
 public class ReportingController {
 
-    private final ReportingService reportingService;
+  private final ReportingService reportingService;
 
-    public ReportingController(ReportingService reportingService) {
-        this.reportingService = reportingService;
-    }
+  public ReportingController(ReportingService reportingService) {
+    this.reportingService = reportingService;
+  }
 
-    @PostMapping("/metrics")
-    public ResponseEntity<MetricResponse> record(@Valid @RequestBody RecordMetricRequest request) {
-        ReportMetric metric = reportingService.record(
-                request.businessDate(), request.metricKey(), request.value(), request.source());
-        return ResponseEntity.status(201)
-                .body(new MetricResponse(metric.getId(), metric.getMetricKey(), metric.getMetricValue()));
-    }
+  @PostMapping("/metrics")
+  public ResponseEntity<MetricResponse> record(@Valid @RequestBody RecordMetricRequest request) {
+    ReportMetric metric =
+        reportingService.record(
+            request.businessDate(), request.metricKey(), request.value(), request.source());
+    return ResponseEntity.status(201)
+        .body(new MetricResponse(metric.getId(), metric.getMetricKey(), metric.getMetricValue()));
+  }
 
-    @GetMapping("/daily")
-    public DailyReport daily(@RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-        return reportingService.dailyReport(date);
-    }
+  @GetMapping("/daily")
+  public DailyReport daily(
+      @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+    return reportingService.dailyReport(date);
+  }
 
-    public record RecordMetricRequest(
-            @NotNull LocalDate businessDate,
-            @NotBlank @Size(max = 80) String metricKey,
-            @NotNull BigDecimal value,
-            @NotBlank @Size(max = 60) String source) {
-    }
+  public record RecordMetricRequest(
+      @NotNull LocalDate businessDate,
+      @NotBlank @Size(max = 80) String metricKey,
+      @NotNull BigDecimal value,
+      @NotBlank @Size(max = 60) String source) {}
 
-    public record MetricResponse(UUID id, String metricKey, BigDecimal value) {
-    }
+  public record MetricResponse(UUID id, String metricKey, BigDecimal value) {}
 }

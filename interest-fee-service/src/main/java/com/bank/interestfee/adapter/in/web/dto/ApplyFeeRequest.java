@@ -10,9 +10,9 @@ import java.math.BigDecimal;
 
 /** Request to apply a fee to an account. */
 public record ApplyFeeRequest(
-        @NotBlank @Size(max = 40) String accountCode,
-        @NotNull FeeType feeType,
-        @NotNull @Positive BigDecimal amount,
-        @NotNull @Pattern(regexp = "^[A-Z]{3}$", message = "currencyCode must be a 3-letter ISO-4217 code")
-        String currencyCode) {
-}
+    @NotBlank @Size(max = 40) String accountCode,
+    @NotNull FeeType feeType,
+    @NotNull @Positive BigDecimal amount,
+    @NotNull
+        @Pattern(regexp = "^[A-Z]{3}$", message = "currencyCode must be a 3-letter ISO-4217 code")
+        String currencyCode) {}

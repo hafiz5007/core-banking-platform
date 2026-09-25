@@ -6,19 +6,19 @@ package com.bank.ledger.domain;
  * liability/equity/income accounts are credit-normal.
  */
 public enum LedgerAccountType {
-    ASSET(Direction.DEBIT),
-    EXPENSE(Direction.DEBIT),
-    LIABILITY(Direction.CREDIT),
-    EQUITY(Direction.CREDIT),
-    INCOME(Direction.CREDIT);
+  ASSET(Direction.DEBIT),
+  EXPENSE(Direction.DEBIT),
+  LIABILITY(Direction.CREDIT),
+  EQUITY(Direction.CREDIT),
+  INCOME(Direction.CREDIT);
 
-    private final Direction normalSide;
+  private final Direction normalSide;
 
-    LedgerAccountType(Direction normalSide) {
-        this.normalSide = normalSide;
-    }
+  LedgerAccountType(Direction normalSide) {
+    this.normalSide = normalSide;
+  }
 
-    public Direction normalSide() {
-        return normalSide;
-    }
+  public Direction normalSide() {
+    return normalSide;
+  }
 }

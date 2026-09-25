@@ -24,58 +24,84 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class ChannelPaymentService {
 
-    private static final Logger log = LoggerFactory.getLogger(ChannelPaymentService.class);
+  private static final Logger log = LoggerFactory.getLogger(ChannelPaymentService.class);
 
-    private final PaymentAliasRepository aliasRepository;
-    private final BillerRepository billerRepository;
-    private final PaymentService paymentService;
+  private final PaymentAliasRepository aliasRepository;
+  private final BillerRepository billerRepository;
+  private final PaymentService paymentService;
 
-    public ChannelPaymentService(PaymentAliasRepository aliasRepository,
-                                 BillerRepository billerRepository,
-                                 PaymentService paymentService) {
-        this.aliasRepository = aliasRepository;
-        this.billerRepository = billerRepository;
-        this.paymentService = paymentService;
+  public ChannelPaymentService(
+      PaymentAliasRepository aliasRepository,
+      BillerRepository billerRepository,
+      PaymentService paymentService) {
+    this.aliasRepository = aliasRepository;
+    this.billerRepository = billerRepository;
+    this.paymentService = paymentService;
+  }
+
+  @Transactional
+  public PaymentAlias registerAlias(String alias, AliasType type, String accountCode) {
+    if (aliasRepository.existsByAlias(alias)) {
+      throw new BusinessException(
+          ErrorCode.DUPLICATE_REQUEST, "Alias already registered: " + alias);
     }
+    return aliasRepository.save(new PaymentAlias(alias, type, accountCode));
+  }
 
-    @Transactional
-    public PaymentAlias registerAlias(String alias, AliasType type, String accountCode) {
-        if (aliasRepository.existsByAlias(alias)) {
-            throw new BusinessException(ErrorCode.DUPLICATE_REQUEST, "Alias already registered: " + alias);
-        }
-        return aliasRepository.save(new PaymentAlias(alias, type, accountCode));
+  @Transactional
+  public Biller registerBiller(String billerCode, String name, String settlementAccount) {
+    if (billerRepository.existsByBillerCode(billerCode)) {
+      throw new BusinessException(
+          ErrorCode.DUPLICATE_REQUEST, "Biller already registered: " + billerCode);
     }
+    return billerRepository.save(new Biller(billerCode, name, settlementAccount));
+  }
 
-    @Transactional
-    public Biller registerBiller(String billerCode, String name, String settlementAccount) {
-        if (billerRepository.existsByBillerCode(billerCode)) {
-            throw new BusinessException(ErrorCode.DUPLICATE_REQUEST, "Biller already registered: " + billerCode);
-        }
-        return billerRepository.save(new Biller(billerCode, name, settlementAccount));
-    }
+  /** Send money to a payee addressed by alias. */
+  @Transactional
+  public Payment payToAlias(
+      String fromAccount, String toAlias, Money amount, String idempotencyKey) {
+    PaymentAlias alias =
+        aliasRepository
+            .findByAlias(toAlias)
+            .orElseThrow(() -> new ResourceNotFoundException("Alias not found: " + toAlias));
+    Payment payment =
+        paymentService.initiate(
+            new InitiatePaymentCommand(
+                idempotencyKey,
+                PaymentType.INTRABANK,
+                fromAccount,
+                alias.getAccountCode(),
+                amount,
+                "P2P to " + toAlias,
+                null));
+    log.info("P2P {} from {} to alias {}", amount, fromAccount, toAlias);
+    return payment;
+  }
 
-    /** Send money to a payee addressed by alias. */
-    @Transactional
-    public Payment payToAlias(String fromAccount, String toAlias, Money amount, String idempotencyKey) {
-        PaymentAlias alias = aliasRepository.findByAlias(toAlias)
-                .orElseThrow(() -> new ResourceNotFoundException("Alias not found: " + toAlias));
-        Payment payment = paymentService.initiate(new InitiatePaymentCommand(
-                idempotencyKey, PaymentType.INTRABANK, fromAccount, alias.getAccountCode(),
-                amount, "P2P to " + toAlias, null));
-        log.info("P2P {} from {} to alias {}", amount, fromAccount, toAlias);
-        return payment;
-    }
-
-    /** Pay a registered biller, tagging the customer reference in the narrative. */
-    @Transactional
-    public Payment payBill(String fromAccount, String billerCode, String customerReference,
-                           Money amount, String idempotencyKey) {
-        Biller biller = billerRepository.findByBillerCode(billerCode)
-                .orElseThrow(() -> new ResourceNotFoundException("Biller not found: " + billerCode));
-        Payment payment = paymentService.initiate(new InitiatePaymentCommand(
-                idempotencyKey, PaymentType.INTRABANK, fromAccount, biller.getSettlementAccount(),
-                amount, "Bill payment " + biller.getName() + " ref " + customerReference, null));
-        log.info("Bill payment {} from {} to biller {}", amount, fromAccount, billerCode);
-        return payment;
-    }
+  /** Pay a registered biller, tagging the customer reference in the narrative. */
+  @Transactional
+  public Payment payBill(
+      String fromAccount,
+      String billerCode,
+      String customerReference,
+      Money amount,
+      String idempotencyKey) {
+    Biller biller =
+        billerRepository
+            .findByBillerCode(billerCode)
+            .orElseThrow(() -> new ResourceNotFoundException("Biller not found: " + billerCode));
+    Payment payment =
+        paymentService.initiate(
+            new InitiatePaymentCommand(
+                idempotencyKey,
+                PaymentType.INTRABANK,
+                fromAccount,
+                biller.getSettlementAccount(),
+                amount,
+                "Bill payment " + biller.getName() + " ref " + customerReference,
+                null));
+    log.info("Bill payment {} from {} to biller {}", amount, fromAccount, billerCode);
+    return payment;
+  }
 }

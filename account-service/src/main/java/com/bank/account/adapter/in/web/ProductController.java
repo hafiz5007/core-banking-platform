@@ -20,29 +20,36 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/products")
 public class ProductController {
 
-    private final ProductService productService;
+  private final ProductService productService;
 
-    public ProductController(ProductService productService) {
-        this.productService = productService;
-    }
+  public ProductController(ProductService productService) {
+    this.productService = productService;
+  }
 
-    @PostMapping
-    public ResponseEntity<ProductResponse> create(@Valid @RequestBody CreateProductRequest request) {
-        Product product = productService.create(
-                request.code(), request.name(), request.accountType(),
-                Currency.getInstance(request.currencyCode()), request.interestRatePercent(),
-                request.monthlyFee(), request.minBalance(), request.dailyLimit(), request.overdraftLimit());
-        return ResponseEntity.created(URI.create("/api/v1/products/" + product.getCode()))
-                .body(ProductResponse.from(product));
-    }
+  @PostMapping
+  public ResponseEntity<ProductResponse> create(@Valid @RequestBody CreateProductRequest request) {
+    Product product =
+        productService.create(
+            request.code(),
+            request.name(),
+            request.accountType(),
+            Currency.getInstance(request.currencyCode()),
+            request.interestRatePercent(),
+            request.monthlyFee(),
+            request.minBalance(),
+            request.dailyLimit(),
+            request.overdraftLimit());
+    return ResponseEntity.created(URI.create("/api/v1/products/" + product.getCode()))
+        .body(ProductResponse.from(product));
+  }
 
-    @GetMapping
-    public List<ProductResponse> list() {
-        return productService.list().stream().map(ProductResponse::from).toList();
-    }
+  @GetMapping
+  public List<ProductResponse> list() {
+    return productService.list().stream().map(ProductResponse::from).toList();
+  }
 
-    @GetMapping("/{code}")
-    public ProductResponse get(@PathVariable String code) {
-        return ProductResponse.from(productService.getByCode(code));
-    }
+  @GetMapping("/{code}")
+  public ProductResponse get(@PathVariable String code) {
+    return ProductResponse.from(productService.getByCode(code));
+  }
 }

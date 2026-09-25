@@ -17,46 +17,44 @@ import org.springframework.http.ResponseEntity;
 /** End-to-end test of the walking skeleton: HTTP -> service -> PostgreSQL -> HTTP. */
 class AccountControllerIT extends AbstractIntegrationTest {
 
-    @Autowired
-    TestRestTemplate rest;
+  @Autowired TestRestTemplate rest;
 
-    @Test
-    void opensAndReadsAnAccount() {
-        OpenAccountRequest request =
-                new OpenAccountRequest(UUID.randomUUID(), AccountType.SAVINGS, "USD");
+  @Test
+  void opensAndReadsAnAccount() {
+    OpenAccountRequest request =
+        new OpenAccountRequest(UUID.randomUUID(), AccountType.SAVINGS, "USD");
 
-        ResponseEntity<AccountResponse> created =
-                rest.postForEntity("/api/v1/accounts", request, AccountResponse.class);
+    ResponseEntity<AccountResponse> created =
+        rest.postForEntity("/api/v1/accounts", request, AccountResponse.class);
 
-        assertThat(created.getStatusCode()).isEqualTo(HttpStatus.CREATED);
-        AccountResponse body = created.getBody();
-        assertThat(body).isNotNull();
-        assertThat(body.id()).isNotNull();
-        assertThat(body.accountNumber()).isNotBlank();
-        assertThat(body.status()).isEqualTo(AccountStatus.ACTIVE);
-        assertThat(body.balance()).isEqualTo("0.00");
-        assertThat(body.currencyCode()).isEqualTo("USD");
+    assertThat(created.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    AccountResponse body = created.getBody();
+    assertThat(body).isNotNull();
+    assertThat(body.id()).isNotNull();
+    assertThat(body.accountNumber()).isNotBlank();
+    assertThat(body.status()).isEqualTo(AccountStatus.ACTIVE);
+    assertThat(body.balance()).isEqualTo("0.00");
+    assertThat(body.currencyCode()).isEqualTo("USD");
 
-        ResponseEntity<AccountResponse> fetched =
-                rest.getForEntity("/api/v1/accounts/" + body.id(), AccountResponse.class);
+    ResponseEntity<AccountResponse> fetched =
+        rest.getForEntity("/api/v1/accounts/" + body.id(), AccountResponse.class);
 
-        assertThat(fetched.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(fetched.getBody()).isNotNull();
-        assertThat(fetched.getBody().id()).isEqualTo(body.id());
-    }
+    assertThat(fetched.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(fetched.getBody()).isNotNull();
+    assertThat(fetched.getBody().id()).isEqualTo(body.id());
+  }
 
-    @Test
-    void returns404ForUnknownAccount() {
-        ResponseEntity<String> response =
-                rest.getForEntity("/api/v1/accounts/" + UUID.randomUUID(), String.class);
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
-    }
+  @Test
+  void returns404ForUnknownAccount() {
+    ResponseEntity<String> response =
+        rest.getForEntity("/api/v1/accounts/" + UUID.randomUUID(), String.class);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+  }
 
-    @Test
-    void rejectsInvalidCurrency() {
-        var bad = new OpenAccountRequest(UUID.randomUUID(), AccountType.CURRENT, "usd");
-        ResponseEntity<String> response =
-                rest.postForEntity("/api/v1/accounts", bad, String.class);
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-    }
+  @Test
+  void rejectsInvalidCurrency() {
+    var bad = new OpenAccountRequest(UUID.randomUUID(), AccountType.CURRENT, "usd");
+    ResponseEntity<String> response = rest.postForEntity("/api/v1/accounts", bad, String.class);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+  }
 }

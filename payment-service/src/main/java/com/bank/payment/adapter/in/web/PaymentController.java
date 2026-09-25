@@ -25,45 +25,52 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/payments")
 public class PaymentController {
 
-    private final PaymentService paymentService;
-    private final ChangeLogRecorder changeLog;
+  private final PaymentService paymentService;
+  private final ChangeLogRecorder changeLog;
 
-    public PaymentController(PaymentService paymentService, ChangeLogRecorder changeLog) {
-        this.paymentService = paymentService;
-        this.changeLog = changeLog;
-    }
+  public PaymentController(PaymentService paymentService, ChangeLogRecorder changeLog) {
+    this.paymentService = paymentService;
+    this.changeLog = changeLog;
+  }
 
-    @PostMapping
-    public ResponseEntity<PaymentResponse> initiate(@Valid @RequestBody InitiatePaymentRequest request) {
-        Money amount = Money.of(request.amount(), Currency.getInstance(request.currencyCode()));
-        Payment payment = paymentService.initiate(new InitiatePaymentCommand(
-                request.idempotencyKey(), request.typeOrDefault(),
-                request.debtorAccount(), request.creditorAccount(), amount, request.narrative(),
+  @PostMapping
+  public ResponseEntity<PaymentResponse> initiate(
+      @Valid @RequestBody InitiatePaymentRequest request) {
+    Money amount = Money.of(request.amount(), Currency.getInstance(request.currencyCode()));
+    Payment payment =
+        paymentService.initiate(
+            new InitiatePaymentCommand(
+                request.idempotencyKey(),
+                request.typeOrDefault(),
+                request.debtorAccount(),
+                request.creditorAccount(),
+                amount,
+                request.narrative(),
                 request.targetCurrencyCode()));
-        return ResponseEntity
-                .created(URI.create("/api/v1/payments/" + payment.getId()))
-                .body(PaymentResponse.from(payment));
-    }
+    return ResponseEntity.created(URI.create("/api/v1/payments/" + payment.getId()))
+        .body(PaymentResponse.from(payment));
+  }
 
-    @GetMapping("/{id}")
-    public PaymentResponse get(@PathVariable UUID id) {
-        return PaymentResponse.from(paymentService.get(id));
-    }
+  @GetMapping("/{id}")
+  public PaymentResponse get(@PathVariable UUID id) {
+    return PaymentResponse.from(paymentService.get(id));
+  }
 
-    @GetMapping("/{id}/change-log")
-    public List<ChangeLogResponse> changeLog(@PathVariable UUID id) {
-        paymentService.get(id); // 404 if unknown
-        return changeLog.history("Payment", id.toString()).stream().map(ChangeLogResponse::from).toList();
-    }
+  @GetMapping("/{id}/change-log")
+  public List<ChangeLogResponse> changeLog(@PathVariable UUID id) {
+    paymentService.get(id); // 404 if unknown
+    return changeLog.history("Payment", id.toString()).stream()
+        .map(ChangeLogResponse::from)
+        .toList();
+  }
 
-    @PostMapping("/{id}/return")
-    public PaymentResponse returnPayment(
-            @PathVariable UUID id, @RequestBody(required = false) ReturnRequest request) {
-        String reason = request != null ? request.reason() : null;
-        return PaymentResponse.from(paymentService.returnPayment(id, reason));
-    }
+  @PostMapping("/{id}/return")
+  public PaymentResponse returnPayment(
+      @PathVariable UUID id, @RequestBody(required = false) ReturnRequest request) {
+    String reason = request != null ? request.reason() : null;
+    return PaymentResponse.from(paymentService.returnPayment(id, reason));
+  }
 
-    /** Optional body for a return/recall request. */
-    public record ReturnRequest(String reason) {
-    }
+  /** Optional body for a return/recall request. */
+  public record ReturnRequest(String reason) {}
 }

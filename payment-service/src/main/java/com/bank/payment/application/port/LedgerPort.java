@@ -9,21 +9,20 @@ import java.util.UUID;
  */
 public interface LedgerPort {
 
-    /**
-     * Post a balanced intrabank transfer: debit the debtor account, credit the creditor account.
-     *
-     * @return the id of the created journal entry, used later for compensation
-     */
-    UUID postTransfer(TransferCommand command);
+  /**
+   * Post a balanced intrabank transfer: debit the debtor account, credit the creditor account.
+   *
+   * @return the id of the created journal entry, used later for compensation
+   */
+  UUID postTransfer(TransferCommand command);
 
-    /** Reverse a previously posted entry (compensation). */
-    UUID reverse(UUID ledgerEntryId, String idempotencyKey);
+  /** Reverse a previously posted entry (compensation). */
+  UUID reverse(UUID ledgerEntryId, String idempotencyKey);
 
-    record TransferCommand(
-            String idempotencyKey,
-            String narrative,
-            String debtorAccount,
-            String creditorAccount,
-            Money amount) {
-    }
+  record TransferCommand(
+      String idempotencyKey,
+      String narrative,
+      String debtorAccount,
+      String creditorAccount,
+      Money amount) {}
 }

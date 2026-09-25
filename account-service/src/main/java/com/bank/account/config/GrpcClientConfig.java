@@ -28,40 +28,40 @@ import org.springframework.context.annotation.Configuration;
 @ConditionalOnProperty(name = "ledger.posting", havingValue = "grpc")
 public class GrpcClientConfig {
 
-    private static final Logger log = LoggerFactory.getLogger(GrpcClientConfig.class);
+  private static final Logger log = LoggerFactory.getLogger(GrpcClientConfig.class);
 
-    /** ledger-service accepts tokens addressed to it under this name. */
-    public static final String LEDGER_AUDIENCE = "ledger-service";
+  /** ledger-service accepts tokens addressed to it under this name. */
+  public static final String LEDGER_AUDIENCE = "ledger-service";
 
-    /** Scope ledger-service requires to accept a posting. */
-    public static final String SCOPE_LEDGER_POST = "ledger:post";
+  /** Scope ledger-service requires to accept a posting. */
+  public static final String SCOPE_LEDGER_POST = "ledger:post";
 
-    @Bean(destroyMethod = "shutdownNow")
-    public ManagedChannel ledgerChannel(@Value("${ledger.grpc.target:localhost:9090}") String target) {
-        log.info("Opening gRPC channel to ledger-service at {}", target);
-        return ManagedChannelBuilder.forTarget(target)
-                .usePlaintext()
-                .build();
+  @Bean(destroyMethod = "shutdownNow")
+  public ManagedChannel ledgerChannel(
+      @Value("${ledger.grpc.target:localhost:9090}") String target) {
+    log.info("Opening gRPC channel to ledger-service at {}", target);
+    return ManagedChannelBuilder.forTarget(target).usePlaintext().build();
+  }
+
+  /**
+   * The stub, with a service-token interceptor attached when service auth is enabled (ADR-008). The
+   * issuer bean only exists when {@code service-auth.enabled=true}, so an unsecured deployment
+   * simply gets a plain stub.
+   */
+  @Bean
+  public LedgerPostingGrpc.LedgerPostingBlockingStub ledgerPostingStub(
+      ManagedChannel ledgerChannel, ObjectProvider<ServiceTokenIssuer> issuer) {
+    LedgerPostingGrpc.LedgerPostingBlockingStub stub =
+        LedgerPostingGrpc.newBlockingStub(ledgerChannel)
+            // Tracing is attached unconditionally: following a request across the hop must not
+            // depend on whether service auth happens to be switched on.
+            .withInterceptors(new CorrelationIdClientInterceptor());
+    ServiceTokenIssuer tokenIssuer = issuer.getIfAvailable();
+    if (tokenIssuer == null) {
+      log.warn("Service auth is disabled: calls to ledger-service carry no identity");
+      return stub;
     }
-
-    /**
-     * The stub, with a service-token interceptor attached when service auth is enabled (ADR-008).
-     * The issuer bean only exists when {@code service-auth.enabled=true}, so an unsecured deployment
-     * simply gets a plain stub.
-     */
-    @Bean
-    public LedgerPostingGrpc.LedgerPostingBlockingStub ledgerPostingStub(
-            ManagedChannel ledgerChannel, ObjectProvider<ServiceTokenIssuer> issuer) {
-        LedgerPostingGrpc.LedgerPostingBlockingStub stub = LedgerPostingGrpc.newBlockingStub(ledgerChannel)
-                // Tracing is attached unconditionally: following a request across the hop must not
-                // depend on whether service auth happens to be switched on.
-                .withInterceptors(new CorrelationIdClientInterceptor());
-        ServiceTokenIssuer tokenIssuer = issuer.getIfAvailable();
-        if (tokenIssuer == null) {
-            log.warn("Service auth is disabled: calls to ledger-service carry no identity");
-            return stub;
-        }
-        return stub.withInterceptors(
-                new JwtClientInterceptor(tokenIssuer, LEDGER_AUDIENCE, SCOPE_LEDGER_POST));
-    }
+    return stub.withInterceptors(
+        new JwtClientInterceptor(tokenIssuer, LEDGER_AUDIENCE, SCOPE_LEDGER_POST));
+  }
 }

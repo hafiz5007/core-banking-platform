@@ -4,5 +4,4 @@ import com.bank.riskaml.domain.Alert;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface AlertRepository extends JpaRepository<Alert, UUID> {
-}
+public interface AlertRepository extends JpaRepository<Alert, UUID> {}

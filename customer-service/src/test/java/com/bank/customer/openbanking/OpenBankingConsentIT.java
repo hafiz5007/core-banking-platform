@@ -17,41 +17,52 @@ import org.springframework.http.ResponseEntity;
 /** End-to-end test of the Open Banking consent flow. */
 class OpenBankingConsentIT extends AbstractIntegrationTest {
 
-    @Autowired
-    TestRestTemplate rest;
+  @Autowired TestRestTemplate rest;
 
-    @Test
-    void requestAuthoriseAndRevokeConsent() {
-        String ref = "CR-" + UUID.randomUUID();
-        var request = new RequestConsentRequest(ref, UUID.randomUUID(), "FinTechCo",
-                Set.of(ConsentScope.ACCOUNT_INFO, ConsentScope.BALANCES), 30);
+  @Test
+  void requestAuthoriseAndRevokeConsent() {
+    String ref = "CR-" + UUID.randomUUID();
+    var request =
+        new RequestConsentRequest(
+            ref,
+            UUID.randomUUID(),
+            "FinTechCo",
+            Set.of(ConsentScope.ACCOUNT_INFO, ConsentScope.BALANCES),
+            30);
 
-        ResponseEntity<ConsentResponse> created =
-                rest.postForEntity("/api/v1/open-banking/consents", request, ConsentResponse.class);
-        assertThat(created.getStatusCode()).isEqualTo(HttpStatus.CREATED);
-        assertThat(created.getBody().status()).isEqualTo(ConsentStatus.AWAITING_AUTHORISATION);
+    ResponseEntity<ConsentResponse> created =
+        rest.postForEntity("/api/v1/open-banking/consents", request, ConsentResponse.class);
+    assertThat(created.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    assertThat(created.getBody().status()).isEqualTo(ConsentStatus.AWAITING_AUTHORISATION);
 
-        ResponseEntity<ConsentResponse> authorised = rest.postForEntity(
-                "/api/v1/open-banking/consents/" + ref + "/authorise",
-                new AuthoriseRequest("sca-" + UUID.randomUUID()), ConsentResponse.class);
-        assertThat(authorised.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(authorised.getBody().status()).isEqualTo(ConsentStatus.ACTIVE);
+    ResponseEntity<ConsentResponse> authorised =
+        rest.postForEntity(
+            "/api/v1/open-banking/consents/" + ref + "/authorise",
+            new AuthoriseRequest("sca-" + UUID.randomUUID()),
+            ConsentResponse.class);
+    assertThat(authorised.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(authorised.getBody().status()).isEqualTo(ConsentStatus.ACTIVE);
 
-        ResponseEntity<ConsentResponse> revoked = rest.postForEntity(
-                "/api/v1/open-banking/consents/" + ref + "/revoke", null, ConsentResponse.class);
-        assertThat(revoked.getBody().status()).isEqualTo(ConsentStatus.REVOKED);
-    }
+    ResponseEntity<ConsentResponse> revoked =
+        rest.postForEntity(
+            "/api/v1/open-banking/consents/" + ref + "/revoke", null, ConsentResponse.class);
+    assertThat(revoked.getBody().status()).isEqualTo(ConsentStatus.REVOKED);
+  }
 
-    @Test
-    void authoriseWithoutScaIsRejected() {
-        String ref = "CR-" + UUID.randomUUID();
-        rest.postForEntity("/api/v1/open-banking/consents",
-                new RequestConsentRequest(ref, UUID.randomUUID(), "FinTechCo",
-                        Set.of(ConsentScope.PAYMENT_INITIATION), 30), ConsentResponse.class);
+  @Test
+  void authoriseWithoutScaIsRejected() {
+    String ref = "CR-" + UUID.randomUUID();
+    rest.postForEntity(
+        "/api/v1/open-banking/consents",
+        new RequestConsentRequest(
+            ref, UUID.randomUUID(), "FinTechCo", Set.of(ConsentScope.PAYMENT_INITIATION), 30),
+        ConsentResponse.class);
 
-        ResponseEntity<String> response = rest.postForEntity(
-                "/api/v1/open-banking/consents/" + ref + "/authorise",
-                new AuthoriseRequest("   "), String.class);
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-    }
+    ResponseEntity<String> response =
+        rest.postForEntity(
+            "/api/v1/open-banking/consents/" + ref + "/authorise",
+            new AuthoriseRequest("   "),
+            String.class);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+  }
 }

@@ -10,9 +10,9 @@ import org.springframework.context.annotation.Primary;
 @TestConfiguration
 public class FakeLedgerConfig {
 
-    @Bean
-    @Primary
-    public LedgerPort fakeLedgerPort() {
-        return command -> UUID.randomUUID();
-    }
+  @Bean
+  @Primary
+  public LedgerPort fakeLedgerPort() {
+    return command -> UUID.randomUUID();
+  }
 }

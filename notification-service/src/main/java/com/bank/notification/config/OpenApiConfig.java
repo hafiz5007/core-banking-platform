@@ -9,12 +9,15 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class OpenApiConfig {
 
-    @Bean
-    OpenAPI notificationOpenApi() {
-        return new OpenAPI().info(new Info()
+  @Bean
+  OpenAPI notificationOpenApi() {
+    return new OpenAPI()
+        .info(
+            new Info()
                 .title("Notification Service API")
                 .version("v1")
-                .description("Customer alerts, one-time passcodes and statement dispatch. Sprint 9.")
+                .description(
+                    "Customer alerts, one-time passcodes and statement dispatch. Sprint 9.")
                 .license(new License().name("Proprietary")));
-    }
+  }
 }

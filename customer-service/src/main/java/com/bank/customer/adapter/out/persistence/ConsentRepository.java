@@ -6,5 +6,5 @@ import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface ConsentRepository extends JpaRepository<Consent, UUID> {
-    List<Consent> findByCustomerIdOrderByRecordedAtDesc(UUID customerId);
+  List<Consent> findByCustomerIdOrderByRecordedAtDesc(UUID customerId);
 }

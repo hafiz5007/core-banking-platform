@@ -8,5 +8,5 @@ import com.bank.payment.domain.Payment;
  */
 public interface PaymentEventPublisher {
 
-    void publish(Payment payment, String eventType);
+  void publish(Payment payment, String eventType);
 }

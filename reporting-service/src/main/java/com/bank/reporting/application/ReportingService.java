@@ -14,28 +14,29 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class ReportingService {
 
-    private final ReportMetricRepository repository;
+  private final ReportMetricRepository repository;
 
-    public ReportingService(ReportMetricRepository repository) {
-        this.repository = repository;
-    }
+  public ReportingService(ReportMetricRepository repository) {
+    this.repository = repository;
+  }
 
-    @Transactional
-    public ReportMetric record(LocalDate businessDate, String metricKey, BigDecimal value, String source) {
-        return repository.save(new ReportMetric(businessDate, metricKey, value, source));
-    }
+  @Transactional
+  public ReportMetric record(
+      LocalDate businessDate, String metricKey, BigDecimal value, String source) {
+    return repository.save(new ReportMetric(businessDate, metricKey, value, source));
+  }
 
-    /** A daily operational report: every metric for the date, summed by key. */
-    @Transactional(readOnly = true)
-    public DailyReport dailyReport(LocalDate businessDate) {
-        List<ReportMetric> metrics = repository.findByBusinessDateOrderByMetricKeyAsc(businessDate);
-        Map<String, BigDecimal> totals = new LinkedHashMap<>();
-        for (ReportMetric m : metrics) {
-            totals.merge(m.getMetricKey(), m.getMetricValue(), BigDecimal::add);
-        }
-        return new DailyReport(businessDate, metrics.size(), totals);
+  /** A daily operational report: every metric for the date, summed by key. */
+  @Transactional(readOnly = true)
+  public DailyReport dailyReport(LocalDate businessDate) {
+    List<ReportMetric> metrics = repository.findByBusinessDateOrderByMetricKeyAsc(businessDate);
+    Map<String, BigDecimal> totals = new LinkedHashMap<>();
+    for (ReportMetric m : metrics) {
+      totals.merge(m.getMetricKey(), m.getMetricValue(), BigDecimal::add);
     }
+    return new DailyReport(businessDate, metrics.size(), totals);
+  }
 
-    public record DailyReport(LocalDate businessDate, int metricCount, Map<String, BigDecimal> totalsByKey) {
-    }
+  public record DailyReport(
+      LocalDate businessDate, int metricCount, Map<String, BigDecimal> totalsByKey) {}
 }

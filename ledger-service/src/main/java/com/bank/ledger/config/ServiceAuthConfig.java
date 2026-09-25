@@ -14,14 +14,16 @@ import org.springframework.context.annotation.Configuration;
  * interceptor is declared here, because the scope it demands is specific to this service.
  */
 @Configuration
-@ConditionalOnProperty(name = {"service-auth.enabled", "service-auth.require-inbound"}, havingValue = "true")
+@ConditionalOnProperty(
+    name = {"service-auth.enabled", "service-auth.require-inbound"},
+    havingValue = "true")
 public class ServiceAuthConfig {
 
-    /** Scope a caller must hold to post journal entries. */
-    public static final String SCOPE_LEDGER_POST = "ledger:post";
+  /** Scope a caller must hold to post journal entries. */
+  public static final String SCOPE_LEDGER_POST = "ledger:post";
 
-    @Bean
-    public ServerInterceptor ledgerPostingAuthInterceptor(ServiceTokenVerifier verifier) {
-        return new JwtServerInterceptor(verifier, SCOPE_LEDGER_POST);
-    }
+  @Bean
+  public ServerInterceptor ledgerPostingAuthInterceptor(ServiceTokenVerifier verifier) {
+    return new JwtServerInterceptor(verifier, SCOPE_LEDGER_POST);
+  }
 }

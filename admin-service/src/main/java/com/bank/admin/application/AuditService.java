@@ -11,19 +11,20 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class AuditService {
 
-    private final AuditEventRepository repository;
+  private final AuditEventRepository repository;
 
-    public AuditService(AuditEventRepository repository) {
-        this.repository = repository;
-    }
+  public AuditService(AuditEventRepository repository) {
+    this.repository = repository;
+  }
 
-    @Transactional
-    public AuditEvent record(String actor, String action, String target, String details) {
-        return repository.save(new AuditEvent(actor, action, target, details, CorrelationIdFilter.current()));
-    }
+  @Transactional
+  public AuditEvent record(String actor, String action, String target, String details) {
+    return repository.save(
+        new AuditEvent(actor, action, target, details, CorrelationIdFilter.current()));
+  }
 
-    @Transactional(readOnly = true)
-    public List<AuditEvent> byActor(String actor) {
-        return repository.findTop200ByActorOrderByOccurredAtDesc(actor);
-    }
+  @Transactional(readOnly = true)
+  public List<AuditEvent> byActor(String actor) {
+    return repository.findTop200ByActorOrderByOccurredAtDesc(actor);
+  }
 }

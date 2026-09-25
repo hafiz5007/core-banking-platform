@@ -23,37 +23,40 @@ import org.springframework.http.ResponseEntity;
 /** Verifies organization capture from the tenant header and the entity change log (ADR-001/002). */
 class OrganizationAndChangeLogIT extends AbstractIntegrationTest {
 
-    @Autowired
-    TestRestTemplate rest;
+  @Autowired TestRestTemplate rest;
 
-    @Test
-    void capturesOrganizationFromHeaderAndLogsCreation() {
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("X-Organization-Id", "ORG-ACME");
-        var request = new OpenAccountRequest(UUID.randomUUID(), AccountType.SAVINGS, "USD");
+  @Test
+  void capturesOrganizationFromHeaderAndLogsCreation() {
+    HttpHeaders headers = new HttpHeaders();
+    headers.set("X-Organization-Id", "ORG-ACME");
+    var request = new OpenAccountRequest(UUID.randomUUID(), AccountType.SAVINGS, "USD");
 
-        ResponseEntity<AccountResponse> created = rest.postForEntity(
-                "/api/v1/accounts", new HttpEntity<>(request, headers), AccountResponse.class);
+    ResponseEntity<AccountResponse> created =
+        rest.postForEntity(
+            "/api/v1/accounts", new HttpEntity<>(request, headers), AccountResponse.class);
 
-        assertThat(created.getStatusCode()).isEqualTo(HttpStatus.CREATED);
-        assertThat(created.getBody().organizationId()).isEqualTo("ORG-ACME");
+    assertThat(created.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    assertThat(created.getBody().organizationId()).isEqualTo("ORG-ACME");
 
-        ResponseEntity<List<ChangeLogResponse>> log = rest.exchange(
-                "/api/v1/accounts/" + created.getBody().id() + "/change-log",
-                HttpMethod.GET, null, new ParameterizedTypeReference<>() { });
+    ResponseEntity<List<ChangeLogResponse>> log =
+        rest.exchange(
+            "/api/v1/accounts/" + created.getBody().id() + "/change-log",
+            HttpMethod.GET,
+            null,
+            new ParameterizedTypeReference<>() {});
 
-        assertThat(log.getBody()).isNotEmpty();
-        ChangeLogResponse entry = log.getBody().get(0);
-        assertThat(entry.changeType()).isEqualTo(ChangeType.CREATE);
-        assertThat(entry.organizationId()).isEqualTo("ORG-ACME");
-        assertThat(entry.entityType()).isEqualTo("Account");
-    }
+    assertThat(log.getBody()).isNotEmpty();
+    ChangeLogResponse entry = log.getBody().get(0);
+    assertThat(entry.changeType()).isEqualTo(ChangeType.CREATE);
+    assertThat(entry.organizationId()).isEqualTo("ORG-ACME");
+    assertThat(entry.entityType()).isEqualTo("Account");
+  }
 
-    @Test
-    void defaultsOrganizationWhenHeaderAbsent() {
-        var request = new OpenAccountRequest(UUID.randomUUID(), AccountType.CURRENT, "USD");
-        ResponseEntity<AccountResponse> created =
-                rest.postForEntity("/api/v1/accounts", request, AccountResponse.class);
-        assertThat(created.getBody().organizationId()).isEqualTo("DEFAULT");
-    }
+  @Test
+  void defaultsOrganizationWhenHeaderAbsent() {
+    var request = new OpenAccountRequest(UUID.randomUUID(), AccountType.CURRENT, "USD");
+    ResponseEntity<AccountResponse> created =
+        rest.postForEntity("/api/v1/accounts", request, AccountResponse.class);
+    assertThat(created.getBody().organizationId()).isEqualTo("DEFAULT");
+  }
 }

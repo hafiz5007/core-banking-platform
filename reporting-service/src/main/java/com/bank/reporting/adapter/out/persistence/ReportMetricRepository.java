@@ -7,5 +7,5 @@ import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface ReportMetricRepository extends JpaRepository<ReportMetric, UUID> {
-    List<ReportMetric> findByBusinessDateOrderByMetricKeyAsc(LocalDate businessDate);
+  List<ReportMetric> findByBusinessDateOrderByMetricKeyAsc(LocalDate businessDate);
 }

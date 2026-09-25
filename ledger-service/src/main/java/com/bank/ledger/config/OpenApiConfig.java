@@ -9,12 +9,15 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class OpenApiConfig {
 
-    @Bean
-    OpenAPI ledgerServiceOpenApi() {
-        return new OpenAPI().info(new Info()
+  @Bean
+  OpenAPI ledgerServiceOpenApi() {
+    return new OpenAPI()
+        .info(
+            new Info()
                 .title("Ledger Service API")
                 .version("v1")
-                .description("Double-entry general ledger: accounts, balanced postings, reversals, trial balance. Sprint 3.")
+                .description(
+                    "Double-entry general ledger: accounts, balanced postings, reversals, trial balance. Sprint 3.")
                 .license(new License().name("Proprietary")));
-    }
+  }
 }

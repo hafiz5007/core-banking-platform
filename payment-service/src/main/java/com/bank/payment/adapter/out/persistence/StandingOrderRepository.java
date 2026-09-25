@@ -8,5 +8,6 @@ import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface StandingOrderRepository extends JpaRepository<StandingOrder, UUID> {
-    List<StandingOrder> findByStatusAndNextRunDateLessThanEqual(StandingOrderStatus status, LocalDate date);
+  List<StandingOrder> findByStatusAndNextRunDateLessThanEqual(
+      StandingOrderStatus status, LocalDate date);
 }

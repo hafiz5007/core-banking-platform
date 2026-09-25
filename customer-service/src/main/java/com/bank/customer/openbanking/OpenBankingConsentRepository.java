@@ -5,7 +5,7 @@ import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface OpenBankingConsentRepository extends JpaRepository<OpenBankingConsent, UUID> {
-    Optional<OpenBankingConsent> findByConsentReference(String consentReference);
+  Optional<OpenBankingConsent> findByConsentReference(String consentReference);
 
-    boolean existsByConsentReference(String consentReference);
+  boolean existsByConsentReference(String consentReference);
 }

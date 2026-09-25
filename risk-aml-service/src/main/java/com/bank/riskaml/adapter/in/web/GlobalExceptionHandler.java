@@ -16,36 +16,38 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+  private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ApiError> handleValidation(MethodArgumentNotValidException ex) {
-        String message = ex.getBindingResult().getFieldErrors().stream()
-                .findFirst()
-                .map(fe -> fe.getField() + ": " + fe.getDefaultMessage())
-                .orElse("Validation failed");
-        return build(ErrorCode.VALIDATION_FAILED, message, HttpStatus.BAD_REQUEST);
-    }
+  @ExceptionHandler(MethodArgumentNotValidException.class)
+  public ResponseEntity<ApiError> handleValidation(MethodArgumentNotValidException ex) {
+    String message =
+        ex.getBindingResult().getFieldErrors().stream()
+            .findFirst()
+            .map(fe -> fe.getField() + ": " + fe.getDefaultMessage())
+            .orElse("Validation failed");
+    return build(ErrorCode.VALIDATION_FAILED, message, HttpStatus.BAD_REQUEST);
+  }
 
-    @ExceptionHandler(BusinessException.class)
-    public ResponseEntity<ApiError> handleBusiness(BusinessException ex) {
-        HttpStatus status = switch (ex.getCode()) {
-            case RESOURCE_NOT_FOUND -> HttpStatus.NOT_FOUND;
-            case DUPLICATE_REQUEST -> HttpStatus.CONFLICT;
-            default -> HttpStatus.UNPROCESSABLE_ENTITY;
+  @ExceptionHandler(BusinessException.class)
+  public ResponseEntity<ApiError> handleBusiness(BusinessException ex) {
+    HttpStatus status =
+        switch (ex.getCode()) {
+          case RESOURCE_NOT_FOUND -> HttpStatus.NOT_FOUND;
+          case DUPLICATE_REQUEST -> HttpStatus.CONFLICT;
+          default -> HttpStatus.UNPROCESSABLE_ENTITY;
         };
-        return build(ex.getCode(), ex.getMessage(), status);
-    }
+    return build(ex.getCode(), ex.getMessage(), status);
+  }
 
-    @ExceptionHandler(Exception.class)
-    public ResponseEntity<ApiError> handleUnexpected(Exception ex) {
-        log.error("Unhandled exception [correlationId={}]", CorrelationIdFilter.current(), ex);
-        return build(ErrorCode.INTERNAL_ERROR, "An unexpected error occurred",
-                HttpStatus.INTERNAL_SERVER_ERROR);
-    }
+  @ExceptionHandler(Exception.class)
+  public ResponseEntity<ApiError> handleUnexpected(Exception ex) {
+    log.error("Unhandled exception [correlationId={}]", CorrelationIdFilter.current(), ex);
+    return build(
+        ErrorCode.INTERNAL_ERROR, "An unexpected error occurred", HttpStatus.INTERNAL_SERVER_ERROR);
+  }
 
-    private ResponseEntity<ApiError> build(ErrorCode code, String message, HttpStatus status) {
-        ApiError body = ApiError.of(code, message, status.value(), CorrelationIdFilter.current());
-        return ResponseEntity.status(status).body(body);
-    }
+  private ResponseEntity<ApiError> build(ErrorCode code, String message, HttpStatus status) {
+    ApiError body = ApiError.of(code, message, status.value(), CorrelationIdFilter.current());
+    return ResponseEntity.status(status).body(body);
+  }
 }

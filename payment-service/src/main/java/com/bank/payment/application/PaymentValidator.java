@@ -10,20 +10,22 @@ import com.bank.payment.application.PaymentService.InitiatePaymentCommand;
  */
 public final class PaymentValidator {
 
-    private PaymentValidator() {
-    }
+  private PaymentValidator() {}
 
-    public static void validate(InitiatePaymentCommand cmd) {
-        if (cmd.debtorAccount() == null || cmd.debtorAccount().isBlank()
-                || cmd.creditorAccount() == null || cmd.creditorAccount().isBlank()) {
-            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "Debtor and creditor accounts are required");
-        }
-        if (cmd.debtorAccount().equals(cmd.creditorAccount())) {
-            throw new BusinessException(ErrorCode.BUSINESS_RULE_VIOLATION,
-                    "Debtor and creditor accounts must differ");
-        }
-        if (cmd.amount() == null || cmd.amount().amount().signum() <= 0) {
-            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "Amount must be positive");
-        }
+  public static void validate(InitiatePaymentCommand cmd) {
+    if (cmd.debtorAccount() == null
+        || cmd.debtorAccount().isBlank()
+        || cmd.creditorAccount() == null
+        || cmd.creditorAccount().isBlank()) {
+      throw new BusinessException(
+          ErrorCode.VALIDATION_FAILED, "Debtor and creditor accounts are required");
     }
+    if (cmd.debtorAccount().equals(cmd.creditorAccount())) {
+      throw new BusinessException(
+          ErrorCode.BUSINESS_RULE_VIOLATION, "Debtor and creditor accounts must differ");
+    }
+    if (cmd.amount() == null || cmd.amount().amount().signum() <= 0) {
+      throw new BusinessException(ErrorCode.VALIDATION_FAILED, "Amount must be positive");
+    }
+  }
 }

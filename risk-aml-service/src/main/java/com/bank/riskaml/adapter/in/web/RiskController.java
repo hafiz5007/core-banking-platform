@@ -24,48 +24,62 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/risk")
 public class RiskController {
 
-    private final RiskService riskService;
+  private final RiskService riskService;
 
-    public RiskController(RiskService riskService) {
-        this.riskService = riskService;
-    }
+  public RiskController(RiskService riskService) {
+    this.riskService = riskService;
+  }
 
-    @PostMapping("/evaluate")
-    public EvaluationResult evaluate(@Valid @RequestBody EvaluateRequest request) {
-        Currency currency = Currency.getInstance(request.currencyCode());
-        return riskService.evaluate(request.transactionRef(), request.accountRef(),
-                Money.of(request.amount(), currency), request.counterpartyCountry());
-    }
+  @PostMapping("/evaluate")
+  public EvaluationResult evaluate(@Valid @RequestBody EvaluateRequest request) {
+    Currency currency = Currency.getInstance(request.currencyCode());
+    return riskService.evaluate(
+        request.transactionRef(),
+        request.accountRef(),
+        Money.of(request.amount(), currency),
+        request.counterpartyCountry());
+  }
 
-    @GetMapping("/cases/{id}")
-    public CaseResponse getCase(@PathVariable UUID id) {
-        return CaseResponse.from(riskService.getCase(id));
-    }
+  @GetMapping("/cases/{id}")
+  public CaseResponse getCase(@PathVariable UUID id) {
+    return CaseResponse.from(riskService.getCase(id));
+  }
 
-    @PostMapping("/cases/{id}/close")
-    public CaseResponse closeCase(@PathVariable UUID id, @RequestBody CloseCaseRequest request) {
-        boolean fileSar = request != null && request.fileSar();
-        String resolution = request != null ? request.resolution() : null;
-        return CaseResponse.from(riskService.closeCase(id, resolution, fileSar));
-    }
+  @PostMapping("/cases/{id}/close")
+  public CaseResponse closeCase(@PathVariable UUID id, @RequestBody CloseCaseRequest request) {
+    boolean fileSar = request != null && request.fileSar();
+    String resolution = request != null ? request.resolution() : null;
+    return CaseResponse.from(riskService.closeCase(id, resolution, fileSar));
+  }
 
-    public record EvaluateRequest(
-            @NotBlank @Size(max = 80) String transactionRef,
-            @NotBlank @Size(max = 40) String accountRef,
-            @NotNull @Positive BigDecimal amount,
-            @NotNull @Pattern(regexp = "^[A-Z]{3}$", message = "currencyCode must be a 3-letter ISO-4217 code")
-            String currencyCode,
-            String counterpartyCountry) {
-    }
+  public record EvaluateRequest(
+      @NotBlank @Size(max = 80) String transactionRef,
+      @NotBlank @Size(max = 40) String accountRef,
+      @NotNull @Positive BigDecimal amount,
+      @NotNull
+          @Pattern(regexp = "^[A-Z]{3}$", message = "currencyCode must be a 3-letter ISO-4217 code")
+          String currencyCode,
+      String counterpartyCountry) {}
 
-    public record CloseCaseRequest(@Size(max = 500) String resolution, boolean fileSar) {
-    }
+  public record CloseCaseRequest(@Size(max = 500) String resolution, boolean fileSar) {}
 
-    public record CaseResponse(UUID id, String organizationId, String accountRef, String ruleCode,
-                               String status, boolean sarFiled, String resolution) {
-        static CaseResponse from(AmlCase c) {
-            return new CaseResponse(c.getId(), c.getOrganizationId(), c.getAccountRef(), c.getRuleCode(),
-                    c.getStatus().name(), c.isSarFiled(), c.getResolution());
-        }
+  public record CaseResponse(
+      UUID id,
+      String organizationId,
+      String accountRef,
+      String ruleCode,
+      String status,
+      boolean sarFiled,
+      String resolution) {
+    static CaseResponse from(AmlCase c) {
+      return new CaseResponse(
+          c.getId(),
+          c.getOrganizationId(),
+          c.getAccountRef(),
+          c.getRuleCode(),
+          c.getStatus().name(),
+          c.isSarFiled(),
+          c.getResolution());
     }
+  }
 }

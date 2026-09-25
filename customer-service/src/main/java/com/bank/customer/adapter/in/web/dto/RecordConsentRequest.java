@@ -5,7 +5,4 @@ import jakarta.validation.constraints.NotNull;
 
 /** Request to record (grant or withdraw) a consent (FR-CUS-006). */
 public record RecordConsentRequest(
-        @NotNull ConsentType consentType,
-        boolean granted,
-        String channel) {
-}
+    @NotNull ConsentType consentType, boolean granted, String channel) {}

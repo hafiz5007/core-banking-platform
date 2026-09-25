@@ -21,55 +21,66 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class DirectDebitService {
 
-    private static final Logger log = LoggerFactory.getLogger(DirectDebitService.class);
+  private static final Logger log = LoggerFactory.getLogger(DirectDebitService.class);
 
-    private final DirectDebitMandateRepository repository;
-    private final PaymentService paymentService;
+  private final DirectDebitMandateRepository repository;
+  private final PaymentService paymentService;
 
-    public DirectDebitService(DirectDebitMandateRepository repository, PaymentService paymentService) {
-        this.repository = repository;
-        this.paymentService = paymentService;
+  public DirectDebitService(
+      DirectDebitMandateRepository repository, PaymentService paymentService) {
+    this.repository = repository;
+    this.paymentService = paymentService;
+  }
+
+  @Transactional
+  public DirectDebitMandate createMandate(
+      String mandateReference, String payerAccount, String payeeAccount, Money maxAmount) {
+    if (repository.existsByMandateReference(mandateReference)) {
+      throw new BusinessException(
+          ErrorCode.DUPLICATE_REQUEST, "Mandate reference already exists: " + mandateReference);
     }
+    return repository.save(
+        DirectDebitMandate.create(mandateReference, payerAccount, payeeAccount, maxAmount));
+  }
 
-    @Transactional
-    public DirectDebitMandate createMandate(String mandateReference, String payerAccount,
-                                            String payeeAccount, Money maxAmount) {
-        if (repository.existsByMandateReference(mandateReference)) {
-            throw new BusinessException(ErrorCode.DUPLICATE_REQUEST,
-                    "Mandate reference already exists: " + mandateReference);
-        }
-        return repository.save(DirectDebitMandate.create(mandateReference, payerAccount, payeeAccount, maxAmount));
-    }
+  @Transactional(readOnly = true)
+  public DirectDebitMandate getMandate(String mandateReference) {
+    return repository
+        .findByMandateReference(mandateReference)
+        .orElseThrow(() -> new ResourceNotFoundException("Mandate not found: " + mandateReference));
+  }
 
-    @Transactional(readOnly = true)
-    public DirectDebitMandate getMandate(String mandateReference) {
-        return repository.findByMandateReference(mandateReference)
-                .orElseThrow(() -> new ResourceNotFoundException("Mandate not found: " + mandateReference));
-    }
+  @Transactional
+  public DirectDebitMandate cancelMandate(String mandateReference) {
+    DirectDebitMandate mandate = getMandate(mandateReference);
+    mandate.cancel();
+    return repository.save(mandate);
+  }
 
-    @Transactional
-    public DirectDebitMandate cancelMandate(String mandateReference) {
-        DirectDebitMandate mandate = getMandate(mandateReference);
-        mandate.cancel();
-        return repository.save(mandate);
+  /**
+   * Collect against a mandate. The {@code collectionReference} is used as the payment idempotency
+   * key so a retried collection is never charged twice.
+   */
+  @Transactional
+  public Payment collect(
+      String mandateReference, Money amount, String collectionReference, String narrative) {
+    DirectDebitMandate mandate = getMandate(mandateReference);
+    if (!mandate.canCollect(amount)) {
+      throw new BusinessException(
+          ErrorCode.BUSINESS_RULE_VIOLATION,
+          "Collection not permitted by mandate " + mandateReference);
     }
-
-    /**
-     * Collect against a mandate. The {@code collectionReference} is used as the payment idempotency
-     * key so a retried collection is never charged twice.
-     */
-    @Transactional
-    public Payment collect(String mandateReference, Money amount, String collectionReference, String narrative) {
-        DirectDebitMandate mandate = getMandate(mandateReference);
-        if (!mandate.canCollect(amount)) {
-            throw new BusinessException(ErrorCode.BUSINESS_RULE_VIOLATION,
-                    "Collection not permitted by mandate " + mandateReference);
-        }
-        Payment payment = paymentService.initiate(new InitiatePaymentCommand(
-                "dd-" + collectionReference, PaymentType.INTRABANK,
-                mandate.getPayerAccount(), mandate.getPayeeAccount(), amount,
-                narrative == null ? "Direct debit " + mandateReference : narrative, null));
-        log.info("Collected {} on mandate {} -> payment {}", amount, mandateReference, payment.getId());
-        return payment;
-    }
+    Payment payment =
+        paymentService.initiate(
+            new InitiatePaymentCommand(
+                "dd-" + collectionReference,
+                PaymentType.INTRABANK,
+                mandate.getPayerAccount(),
+                mandate.getPayeeAccount(),
+                amount,
+                narrative == null ? "Direct debit " + mandateReference : narrative,
+                null));
+    log.info("Collected {} on mandate {} -> payment {}", amount, mandateReference, payment.getId());
+    return payment;
+  }
 }

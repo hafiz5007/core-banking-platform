@@ -13,19 +13,19 @@ import org.springframework.context.annotation.Primary;
 @TestConfiguration
 public class FakeLedgerConfig {
 
-    @Bean
-    @Primary
-    public LedgerPort fakeLedgerPort() {
-        return new LedgerPort() {
-            @Override
-            public UUID postTransfer(TransferCommand command) {
-                return UUID.randomUUID();
-            }
+  @Bean
+  @Primary
+  public LedgerPort fakeLedgerPort() {
+    return new LedgerPort() {
+      @Override
+      public UUID postTransfer(TransferCommand command) {
+        return UUID.randomUUID();
+      }
 
-            @Override
-            public UUID reverse(UUID ledgerEntryId, String idempotencyKey) {
-                return UUID.randomUUID();
-            }
-        };
-    }
+      @Override
+      public UUID reverse(UUID ledgerEntryId, String idempotencyKey) {
+        return UUID.randomUUID();
+      }
+    };
+  }
 }

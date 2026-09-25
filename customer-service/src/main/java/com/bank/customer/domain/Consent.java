@@ -17,60 +17,60 @@ import java.util.UUID;
 @Table(name = "consent")
 public class Consent {
 
-    @Id
-    @Column(nullable = false, updatable = false)
-    private UUID id;
+  @Id
+  @Column(nullable = false, updatable = false)
+  private UUID id;
 
-    @Column(name = "customer_id", nullable = false, updatable = false)
-    private UUID customerId;
+  @Column(name = "customer_id", nullable = false, updatable = false)
+  private UUID customerId;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "consent_type", nullable = false, updatable = false, length = 30)
-    private ConsentType consentType;
+  @Enumerated(EnumType.STRING)
+  @Column(name = "consent_type", nullable = false, updatable = false, length = 30)
+  private ConsentType consentType;
 
-    @Column(nullable = false, updatable = false)
-    private boolean granted;
+  @Column(nullable = false, updatable = false)
+  private boolean granted;
 
-    @Column(nullable = false, updatable = false, length = 30)
-    private String channel;
+  @Column(nullable = false, updatable = false, length = 30)
+  private String channel;
 
-    @Column(name = "recorded_at", nullable = false, updatable = false)
-    private Instant recordedAt;
+  @Column(name = "recorded_at", nullable = false, updatable = false)
+  private Instant recordedAt;
 
-    protected Consent() {
-        // Required by JPA.
-    }
+  protected Consent() {
+    // Required by JPA.
+  }
 
-    public Consent(UUID customerId, ConsentType consentType, boolean granted, String channel) {
-        this.id = UUID.randomUUID();
-        this.customerId = customerId;
-        this.consentType = consentType;
-        this.granted = granted;
-        this.channel = channel;
-        this.recordedAt = Instant.now();
-    }
+  public Consent(UUID customerId, ConsentType consentType, boolean granted, String channel) {
+    this.id = UUID.randomUUID();
+    this.customerId = customerId;
+    this.consentType = consentType;
+    this.granted = granted;
+    this.channel = channel;
+    this.recordedAt = Instant.now();
+  }
 
-    public UUID getId() {
-        return id;
-    }
+  public UUID getId() {
+    return id;
+  }
 
-    public UUID getCustomerId() {
-        return customerId;
-    }
+  public UUID getCustomerId() {
+    return customerId;
+  }
 
-    public ConsentType getConsentType() {
-        return consentType;
-    }
+  public ConsentType getConsentType() {
+    return consentType;
+  }
 
-    public boolean isGranted() {
-        return granted;
-    }
+  public boolean isGranted() {
+    return granted;
+  }
 
-    public String getChannel() {
-        return channel;
-    }
+  public String getChannel() {
+    return channel;
+  }
 
-    public Instant getRecordedAt() {
-        return recordedAt;
-    }
+  public Instant getRecordedAt() {
+    return recordedAt;
+  }
 }

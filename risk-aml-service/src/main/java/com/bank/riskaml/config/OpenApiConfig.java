@@ -9,12 +9,14 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class OpenApiConfig {
 
-    @Bean
-    OpenAPI riskAmlOpenApi() {
-        return new OpenAPI().info(new Info()
+  @Bean
+  OpenAPI riskAmlOpenApi() {
+    return new OpenAPI()
+        .info(
+            new Info()
                 .title("Risk & AML Service API")
                 .version("v1")
                 .description("Transaction monitoring, alerts, case management and SAR. Sprint 10.")
                 .license(new License().name("Proprietary")));
-    }
+  }
 }

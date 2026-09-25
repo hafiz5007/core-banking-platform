@@ -19,51 +19,46 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/notifications")
 public class NotificationController {
 
-    private final NotificationService notificationService;
+  private final NotificationService notificationService;
 
-    public NotificationController(NotificationService notificationService) {
-        this.notificationService = notificationService;
-    }
+  public NotificationController(NotificationService notificationService) {
+    this.notificationService = notificationService;
+  }
 
-    @PostMapping("/alerts")
-    public ResponseEntity<AlertResponse> sendAlert(@Valid @RequestBody AlertRequest request) {
-        Notification n = notificationService.sendAlert(
-                request.recipient(), request.type(), request.channel(), request.message());
-        return ResponseEntity.status(201)
-                .body(new AlertResponse(n.getId(), n.getStatus().name()));
-    }
+  @PostMapping("/alerts")
+  public ResponseEntity<AlertResponse> sendAlert(@Valid @RequestBody AlertRequest request) {
+    Notification n =
+        notificationService.sendAlert(
+            request.recipient(), request.type(), request.channel(), request.message());
+    return ResponseEntity.status(201).body(new AlertResponse(n.getId(), n.getStatus().name()));
+  }
 
-    @PostMapping("/otp")
-    public ResponseEntity<OtpIssuedResponse> issueOtp(@Valid @RequestBody OtpRequest request) {
-        UUID challengeId = notificationService.issueOtp(request.recipient(), request.channel());
-        return ResponseEntity.status(201).body(new OtpIssuedResponse(challengeId));
-    }
+  @PostMapping("/otp")
+  public ResponseEntity<OtpIssuedResponse> issueOtp(@Valid @RequestBody OtpRequest request) {
+    UUID challengeId = notificationService.issueOtp(request.recipient(), request.channel());
+    return ResponseEntity.status(201).body(new OtpIssuedResponse(challengeId));
+  }
 
-    @PostMapping("/otp/verify")
-    public OtpVerifyResponse verifyOtp(@Valid @RequestBody OtpVerifyRequest request) {
-        boolean verified = notificationService.verifyOtp(request.challengeId(), request.code());
-        return new OtpVerifyResponse(verified);
-    }
+  @PostMapping("/otp/verify")
+  public OtpVerifyResponse verifyOtp(@Valid @RequestBody OtpVerifyRequest request) {
+    boolean verified = notificationService.verifyOtp(request.challengeId(), request.code());
+    return new OtpVerifyResponse(verified);
+  }
 
-    public record AlertRequest(
-            @NotBlank @Size(max = 320) String recipient,
-            @NotNull NotificationType type,
-            @NotNull NotificationChannel channel,
-            @NotBlank @Size(max = 500) String message) {
-    }
+  public record AlertRequest(
+      @NotBlank @Size(max = 320) String recipient,
+      @NotNull NotificationType type,
+      @NotNull NotificationChannel channel,
+      @NotBlank @Size(max = 500) String message) {}
 
-    public record AlertResponse(UUID id, String status) {
-    }
+  public record AlertResponse(UUID id, String status) {}
 
-    public record OtpRequest(@NotBlank @Size(max = 320) String recipient, @NotNull NotificationChannel channel) {
-    }
+  public record OtpRequest(
+      @NotBlank @Size(max = 320) String recipient, @NotNull NotificationChannel channel) {}
 
-    public record OtpIssuedResponse(UUID challengeId) {
-    }
+  public record OtpIssuedResponse(UUID challengeId) {}
 
-    public record OtpVerifyRequest(@NotNull UUID challengeId, @NotBlank @Size(max = 6) String code) {
-    }
+  public record OtpVerifyRequest(@NotNull UUID challengeId, @NotBlank @Size(max = 6) String code) {}
 
-    public record OtpVerifyResponse(boolean verified) {
-    }
+  public record OtpVerifyResponse(boolean verified) {}
 }

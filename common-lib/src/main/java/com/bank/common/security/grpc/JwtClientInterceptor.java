@@ -17,29 +17,30 @@ import io.grpc.MethodDescriptor;
  */
 public class JwtClientInterceptor implements ClientInterceptor {
 
-    /** gRPC metadata keys are lower-case; this is the conventional name for a bearer token. */
-    public static final Metadata.Key<String> AUTHORIZATION =
-            Metadata.Key.of("authorization", Metadata.ASCII_STRING_MARSHALLER);
+  /** gRPC metadata keys are lower-case; this is the conventional name for a bearer token. */
+  public static final Metadata.Key<String> AUTHORIZATION =
+      Metadata.Key.of("authorization", Metadata.ASCII_STRING_MARSHALLER);
 
-    private final ServiceTokenIssuer issuer;
-    private final String audience;
-    private final String[] scopes;
+  private final ServiceTokenIssuer issuer;
+  private final String audience;
+  private final String[] scopes;
 
-    public JwtClientInterceptor(ServiceTokenIssuer issuer, String audience, String... scopes) {
-        this.issuer = issuer;
-        this.audience = audience;
-        this.scopes = scopes.clone();
-    }
+  public JwtClientInterceptor(ServiceTokenIssuer issuer, String audience, String... scopes) {
+    this.issuer = issuer;
+    this.audience = audience;
+    this.scopes = scopes.clone();
+  }
 
-    @Override
-    public <ReqT, RespT> ClientCall<ReqT, RespT> interceptCall(
-            MethodDescriptor<ReqT, RespT> method, CallOptions callOptions, Channel next) {
-        return new ForwardingClientCall.SimpleForwardingClientCall<>(next.newCall(method, callOptions)) {
-            @Override
-            public void start(Listener<RespT> responseListener, Metadata headers) {
-                headers.put(AUTHORIZATION, "Bearer " + issuer.mint(audience, scopes));
-                super.start(responseListener, headers);
-            }
-        };
-    }
+  @Override
+  public <ReqT, RespT> ClientCall<ReqT, RespT> interceptCall(
+      MethodDescriptor<ReqT, RespT> method, CallOptions callOptions, Channel next) {
+    return new ForwardingClientCall.SimpleForwardingClientCall<>(
+        next.newCall(method, callOptions)) {
+      @Override
+      public void start(Listener<RespT> responseListener, Metadata headers) {
+        headers.put(AUTHORIZATION, "Bearer " + issuer.mint(audience, scopes));
+        super.start(responseListener, headers);
+      }
+    };
+  }
 }

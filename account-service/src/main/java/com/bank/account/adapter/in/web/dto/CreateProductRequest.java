@@ -10,14 +10,14 @@ import java.math.BigDecimal;
 
 /** Request to define a catalogue product. */
 public record CreateProductRequest(
-        @NotBlank @Size(max = 40) String code,
-        @NotBlank @Size(max = 120) String name,
-        @NotNull AccountType accountType,
-        @NotNull @Pattern(regexp = "^[A-Z]{3}$", message = "currencyCode must be a 3-letter ISO-4217 code")
+    @NotBlank @Size(max = 40) String code,
+    @NotBlank @Size(max = 120) String name,
+    @NotNull AccountType accountType,
+    @NotNull
+        @Pattern(regexp = "^[A-Z]{3}$", message = "currencyCode must be a 3-letter ISO-4217 code")
         String currencyCode,
-        @NotNull @PositiveOrZero BigDecimal interestRatePercent,
-        @NotNull @PositiveOrZero BigDecimal monthlyFee,
-        @NotNull @PositiveOrZero BigDecimal minBalance,
-        @NotNull @PositiveOrZero BigDecimal dailyLimit,
-        @NotNull @PositiveOrZero BigDecimal overdraftLimit) {
-}
+    @NotNull @PositiveOrZero BigDecimal interestRatePercent,
+    @NotNull @PositiveOrZero BigDecimal monthlyFee,
+    @NotNull @PositiveOrZero BigDecimal minBalance,
+    @NotNull @PositiveOrZero BigDecimal dailyLimit,
+    @NotNull @PositiveOrZero BigDecimal overdraftLimit) {}

@@ -10,23 +10,22 @@ import com.bank.payment.domain.PaymentType;
  */
 public interface ClearingPort {
 
-    ClearingResult submit(PaymentType rail, ClearingInstruction instruction);
+  ClearingResult submit(PaymentType rail, ClearingInstruction instruction);
 
-    record ClearingInstruction(String idempotencyKey, Pacs008Message message) {
+  record ClearingInstruction(String idempotencyKey, Pacs008Message message) {}
+
+  /**
+   * @param accepted whether the scheme accepted the instruction
+   * @param schemeReference the scheme's reference when accepted (null otherwise)
+   * @param reason rejection reason when not accepted (null otherwise)
+   */
+  record ClearingResult(boolean accepted, String schemeReference, String reason) {
+    public static ClearingResult accepted(String schemeReference) {
+      return new ClearingResult(true, schemeReference, null);
     }
 
-    /**
-     * @param accepted        whether the scheme accepted the instruction
-     * @param schemeReference the scheme's reference when accepted (null otherwise)
-     * @param reason          rejection reason when not accepted (null otherwise)
-     */
-    record ClearingResult(boolean accepted, String schemeReference, String reason) {
-        public static ClearingResult accepted(String schemeReference) {
-            return new ClearingResult(true, schemeReference, null);
-        }
-
-        public static ClearingResult rejected(String reason) {
-            return new ClearingResult(false, null, reason);
-        }
+    public static ClearingResult rejected(String reason) {
+      return new ClearingResult(false, null, reason);
     }
+  }
 }

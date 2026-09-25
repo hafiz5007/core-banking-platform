@@ -9,5 +9,5 @@ import java.util.Currency;
  */
 public interface LedgerProvisioningPort {
 
-    void provisionAccount(String code, String name, Currency currency);
+  void provisionAccount(String code, String name, Currency currency);
 }

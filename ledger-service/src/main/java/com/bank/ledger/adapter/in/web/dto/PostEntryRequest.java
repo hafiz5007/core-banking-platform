@@ -13,14 +13,13 @@ import java.util.List;
 
 /** Request to post a balanced journal entry. */
 public record PostEntryRequest(
-        @NotBlank @Size(max = 80) String idempotencyKey,
-        @NotBlank @Size(max = 280) String narrative,
-        LocalDate valueDate,
-        @NotEmpty @Valid List<Line> lines) {
+    @NotBlank @Size(max = 80) String idempotencyKey,
+    @NotBlank @Size(max = 280) String narrative,
+    LocalDate valueDate,
+    @NotEmpty @Valid List<Line> lines) {
 
-    public record Line(
-            @NotBlank @Size(max = 40) String accountCode,
-            @NotNull Direction direction,
-            @NotNull @Positive BigDecimal amount) {
-    }
+  public record Line(
+      @NotBlank @Size(max = 40) String accountCode,
+      @NotNull Direction direction,
+      @NotNull @Positive BigDecimal amount) {}
 }

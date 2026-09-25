@@ -13,20 +13,23 @@ import org.springframework.stereotype.Component;
 @Component
 public class LoggingSenderAdapter implements NotificationSenderPort {
 
-    private static final Logger log = LoggerFactory.getLogger(LoggingSenderAdapter.class);
+  private static final Logger log = LoggerFactory.getLogger(LoggingSenderAdapter.class);
 
-    @Override
-    public boolean send(Notification notification) {
-        log.info("Dispatching {} via {} to {}: {}",
-                notification.getType(), notification.getChannel(),
-                maskRecipient(notification.getRecipient()), notification.getMessage());
-        return true;
-    }
+  @Override
+  public boolean send(Notification notification) {
+    log.info(
+        "Dispatching {} via {} to {}: {}",
+        notification.getType(),
+        notification.getChannel(),
+        maskRecipient(notification.getRecipient()),
+        notification.getMessage());
+    return true;
+  }
 
-    private String maskRecipient(String recipient) {
-        if (recipient == null || recipient.length() < 4) {
-            return "***";
-        }
-        return "***" + recipient.substring(recipient.length() - 4);
+  private String maskRecipient(String recipient) {
+    if (recipient == null || recipient.length() < 4) {
+      return "***";
     }
+    return "***" + recipient.substring(recipient.length() - 4);
+  }
 }

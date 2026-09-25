@@ -6,7 +6,7 @@ import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface BillerRepository extends JpaRepository<Biller, UUID> {
-    Optional<Biller> findByBillerCode(String billerCode);
+  Optional<Biller> findByBillerCode(String billerCode);
 
-    boolean existsByBillerCode(String billerCode);
+  boolean existsByBillerCode(String billerCode);
 }

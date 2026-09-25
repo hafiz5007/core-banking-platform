@@ -7,7 +7,7 @@ import java.util.UUID;
 /** Response view of an account holder. */
 public record AccountHolderResponse(UUID customerId, HolderRole role) {
 
-    public static AccountHolderResponse from(AccountHolder h) {
-        return new AccountHolderResponse(h.getCustomerId(), h.getRole());
-    }
+  public static AccountHolderResponse from(AccountHolder h) {
+    return new AccountHolderResponse(h.getCustomerId(), h.getRole());
+  }
 }

@@ -25,47 +25,54 @@ import org.springframework.stereotype.Component;
 @Component
 public class ExternalClearingHandler implements PaymentRailHandler {
 
-    private final LedgerPort ledgerPort;
-    private final ClearingPort clearingPort;
-    private final Iso20022MessageFactory messageFactory;
-    private final String settlementAccount;
+  private final LedgerPort ledgerPort;
+  private final ClearingPort clearingPort;
+  private final Iso20022MessageFactory messageFactory;
+  private final String settlementAccount;
 
-    public ExternalClearingHandler(LedgerPort ledgerPort,
-                                   ClearingPort clearingPort,
-                                   Iso20022MessageFactory messageFactory,
-                                   @Value("${clearing.settlement-account:SETTLEMENT}") String settlementAccount) {
-        this.ledgerPort = ledgerPort;
-        this.clearingPort = clearingPort;
-        this.messageFactory = messageFactory;
-        this.settlementAccount = settlementAccount;
+  public ExternalClearingHandler(
+      LedgerPort ledgerPort,
+      ClearingPort clearingPort,
+      Iso20022MessageFactory messageFactory,
+      @Value("${clearing.settlement-account:SETTLEMENT}") String settlementAccount) {
+    this.ledgerPort = ledgerPort;
+    this.clearingPort = clearingPort;
+    this.messageFactory = messageFactory;
+    this.settlementAccount = settlementAccount;
+  }
+
+  @Override
+  public Set<PaymentType> supportedTypes() {
+    return Set.of(PaymentType.DOMESTIC_INSTANT, PaymentType.RTGS, PaymentType.ACH);
+  }
+
+  @Override
+  public void execute(Payment payment) {
+    String key = payment.getIdempotencyKey();
+
+    // 1. Money movement: debit the customer, credit the clearing settlement account.
+    UUID entryId =
+        ledgerPort.postTransfer(
+            new TransferCommand(
+                "pay-" + key,
+                payment.getNarrative(),
+                payment.getDebtorAccount(),
+                settlementAccount,
+                payment.money()));
+    payment.markPosted(entryId);
+
+    // 2. Build the ISO 20022 message and submit to the scheme.
+    Pacs008Message message = messageFactory.pacs008(payment);
+    ClearingResult result =
+        clearingPort.submit(payment.getType(), new ClearingInstruction("clr-" + key, message));
+
+    // 3. Compensate on rejection.
+    if (!result.accepted()) {
+      UUID reversalId = ledgerPort.reverse(entryId, "rev-" + key);
+      throw new PaymentRailException(reversalId, "Scheme rejected: " + result.reason());
     }
 
-    @Override
-    public Set<PaymentType> supportedTypes() {
-        return Set.of(PaymentType.DOMESTIC_INSTANT, PaymentType.RTGS, PaymentType.ACH);
-    }
-
-    @Override
-    public void execute(Payment payment) {
-        String key = payment.getIdempotencyKey();
-
-        // 1. Money movement: debit the customer, credit the clearing settlement account.
-        UUID entryId = ledgerPort.postTransfer(new TransferCommand(
-                "pay-" + key, payment.getNarrative(),
-                payment.getDebtorAccount(), settlementAccount, payment.money()));
-        payment.markPosted(entryId);
-
-        // 2. Build the ISO 20022 message and submit to the scheme.
-        Pacs008Message message = messageFactory.pacs008(payment);
-        ClearingResult result = clearingPort.submit(payment.getType(), new ClearingInstruction("clr-" + key, message));
-
-        // 3. Compensate on rejection.
-        if (!result.accepted()) {
-            UUID reversalId = ledgerPort.reverse(entryId, "rev-" + key);
-            throw new PaymentRailException(reversalId, "Scheme rejected: " + result.reason());
-        }
-
-        payment.markSubmitted(result.schemeReference());
-        payment.markSettled();
-    }
+    payment.markSubmitted(result.schemeReference());
+    payment.markSettled();
+  }
 }

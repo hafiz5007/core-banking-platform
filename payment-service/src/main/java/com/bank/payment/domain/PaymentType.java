@@ -5,9 +5,9 @@ package com.bank.payment.domain;
  * routing engine will dispatch to domestic and overseas adapters in later sprints.
  */
 public enum PaymentType {
-    INTRABANK,
-    DOMESTIC_INSTANT,
-    RTGS,
-    ACH,
-    CROSS_BORDER
+  INTRABANK,
+  DOMESTIC_INSTANT,
+  RTGS,
+  ACH,
+  CROSS_BORDER
 }

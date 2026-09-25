@@ -17,96 +17,96 @@ import java.util.UUID;
 @Table(name = "aml_case")
 public class AmlCase {
 
-    @Id
-    @Column(nullable = false, updatable = false)
-    private UUID id;
+  @Id
+  @Column(nullable = false, updatable = false)
+  private UUID id;
 
-    @Column(name = "organization_id", nullable = false, updatable = false, length = 60)
-    private String organizationId;
+  @Column(name = "organization_id", nullable = false, updatable = false, length = 60)
+  private String organizationId;
 
-    @Column(name = "account_ref", nullable = false, updatable = false, length = 40)
-    private String accountRef;
+  @Column(name = "account_ref", nullable = false, updatable = false, length = 40)
+  private String accountRef;
 
-    @Column(name = "rule_code", nullable = false, updatable = false, length = 40)
-    private String ruleCode;
+  @Column(name = "rule_code", nullable = false, updatable = false, length = 40)
+  private String ruleCode;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 12)
-    private CaseStatus status;
+  @Enumerated(EnumType.STRING)
+  @Column(nullable = false, length = 12)
+  private CaseStatus status;
 
-    @Column(name = "sar_filed", nullable = false)
-    private boolean sarFiled;
+  @Column(name = "sar_filed", nullable = false)
+  private boolean sarFiled;
 
-    @Column(length = 500)
-    private String resolution;
+  @Column(length = 500)
+  private String resolution;
 
-    @Version
-    @Column(nullable = false)
-    private long version;
+  @Version
+  @Column(nullable = false)
+  private long version;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private Instant createdAt;
+  @Column(name = "created_at", nullable = false, updatable = false)
+  private Instant createdAt;
 
-    @Column(name = "closed_at")
-    private Instant closedAt;
+  @Column(name = "closed_at")
+  private Instant closedAt;
 
-    protected AmlCase() {
-        // Required by JPA.
+  protected AmlCase() {
+    // Required by JPA.
+  }
+
+  public AmlCase(String accountRef, String ruleCode) {
+    this.id = UUID.randomUUID();
+    this.organizationId = com.bank.common.tenant.TenantContext.getOrDefault();
+    this.accountRef = accountRef;
+    this.ruleCode = ruleCode;
+    this.status = CaseStatus.OPEN;
+    this.sarFiled = false;
+    this.createdAt = Instant.now();
+  }
+
+  public void close(String resolution, boolean fileSar) {
+    if (status == CaseStatus.CLOSED) {
+      throw new BusinessException(ErrorCode.BUSINESS_RULE_VIOLATION, "Case already closed");
     }
+    this.resolution = resolution;
+    this.sarFiled = fileSar;
+    this.status = CaseStatus.CLOSED;
+    this.closedAt = Instant.now();
+  }
 
-    public AmlCase(String accountRef, String ruleCode) {
-        this.id = UUID.randomUUID();
-        this.organizationId = com.bank.common.tenant.TenantContext.getOrDefault();
-        this.accountRef = accountRef;
-        this.ruleCode = ruleCode;
-        this.status = CaseStatus.OPEN;
-        this.sarFiled = false;
-        this.createdAt = Instant.now();
-    }
+  public UUID getId() {
+    return id;
+  }
 
-    public void close(String resolution, boolean fileSar) {
-        if (status == CaseStatus.CLOSED) {
-            throw new BusinessException(ErrorCode.BUSINESS_RULE_VIOLATION, "Case already closed");
-        }
-        this.resolution = resolution;
-        this.sarFiled = fileSar;
-        this.status = CaseStatus.CLOSED;
-        this.closedAt = Instant.now();
-    }
+  public String getOrganizationId() {
+    return organizationId;
+  }
 
-    public UUID getId() {
-        return id;
-    }
+  public String getAccountRef() {
+    return accountRef;
+  }
 
-    public String getOrganizationId() {
-        return organizationId;
-    }
+  public String getRuleCode() {
+    return ruleCode;
+  }
 
-    public String getAccountRef() {
-        return accountRef;
-    }
+  public CaseStatus getStatus() {
+    return status;
+  }
 
-    public String getRuleCode() {
-        return ruleCode;
-    }
+  public boolean isSarFiled() {
+    return sarFiled;
+  }
 
-    public CaseStatus getStatus() {
-        return status;
-    }
+  public String getResolution() {
+    return resolution;
+  }
 
-    public boolean isSarFiled() {
-        return sarFiled;
-    }
+  public Instant getCreatedAt() {
+    return createdAt;
+  }
 
-    public String getResolution() {
-        return resolution;
-    }
-
-    public Instant getCreatedAt() {
-        return createdAt;
-    }
-
-    public Instant getClosedAt() {
-        return closedAt;
-    }
+  public Instant getClosedAt() {
+    return closedAt;
+  }
 }

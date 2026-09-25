@@ -13,21 +13,27 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class ChangeLogRecorder {
 
-    private final ChangeLogRepository repository;
+  private final ChangeLogRepository repository;
 
-    public ChangeLogRecorder(ChangeLogRepository repository) {
-        this.repository = repository;
-    }
+  public ChangeLogRecorder(ChangeLogRepository repository) {
+    this.repository = repository;
+  }
 
-    public void record(String entityType, String entityId, ChangeType changeType,
-                       String actor, String details) {
-        repository.save(new ChangeLog(
-                TenantContext.getOrDefault(), entityType, entityId, changeType,
-                actor == null ? "system" : actor, details, CorrelationIdFilter.current()));
-    }
+  public void record(
+      String entityType, String entityId, ChangeType changeType, String actor, String details) {
+    repository.save(
+        new ChangeLog(
+            TenantContext.getOrDefault(),
+            entityType,
+            entityId,
+            changeType,
+            actor == null ? "system" : actor,
+            details,
+            CorrelationIdFilter.current()));
+  }
 
-    @Transactional(readOnly = true)
-    public List<ChangeLog> history(String entityType, String entityId) {
-        return repository.findByEntityTypeAndEntityIdOrderByOccurredAtDesc(entityType, entityId);
-    }
+  @Transactional(readOnly = true)
+  public List<ChangeLog> history(String entityType, String entityId) {
+    return repository.findByEntityTypeAndEntityIdOrderByOccurredAtDesc(entityType, entityId);
+  }
 }

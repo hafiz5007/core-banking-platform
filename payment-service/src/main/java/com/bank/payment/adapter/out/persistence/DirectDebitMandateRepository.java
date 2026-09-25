@@ -6,7 +6,7 @@ import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface DirectDebitMandateRepository extends JpaRepository<DirectDebitMandate, UUID> {
-    Optional<DirectDebitMandate> findByMandateReference(String mandateReference);
+  Optional<DirectDebitMandate> findByMandateReference(String mandateReference);
 
-    boolean existsByMandateReference(String mandateReference);
+  boolean existsByMandateReference(String mandateReference);
 }

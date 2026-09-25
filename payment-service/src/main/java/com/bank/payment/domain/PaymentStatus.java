@@ -12,14 +12,14 @@ package com.bank.payment.domain;
  * </pre>
  */
 public enum PaymentStatus {
-    RECEIVED,
-    VALIDATED,
-    SCREENED,
-    POSTED,
-    SUBMITTED,
-    SETTLED,
-    CONFIRMED,
-    REJECTED,
-    COMPENSATED,
-    RETURNED
+  RECEIVED,
+  VALIDATED,
+  SCREENED,
+  POSTED,
+  SUBMITTED,
+  SETTLED,
+  CONFIRMED,
+  REJECTED,
+  COMPENSATED,
+  RETURNED
 }

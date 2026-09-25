@@ -11,11 +11,10 @@ import java.util.UUID;
  * Request to open an account from a product, optionally as a joint account.
  *
  * @param additionalHolders extra (joint) customer ids; the primary is always a holder
- * @param mandateType       authorization rule; defaults to SINGLE when omitted
+ * @param mandateType authorization rule; defaults to SINGLE when omitted
  */
 public record OpenFromProductRequest(
-        @NotBlank @Size(max = 40) String productCode,
-        @NotNull UUID primaryCustomerId,
-        List<UUID> additionalHolders,
-        MandateType mandateType) {
-}
+    @NotBlank @Size(max = 40) String productCode,
+    @NotNull UUID primaryCustomerId,
+    List<UUID> additionalHolders,
+    MandateType mandateType) {}

@@ -26,64 +26,82 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/direct-debits")
 public class DirectDebitController {
 
-    private final DirectDebitService directDebitService;
+  private final DirectDebitService directDebitService;
 
-    public DirectDebitController(DirectDebitService directDebitService) {
-        this.directDebitService = directDebitService;
-    }
+  public DirectDebitController(DirectDebitService directDebitService) {
+    this.directDebitService = directDebitService;
+  }
 
-    @PostMapping("/mandates")
-    public ResponseEntity<MandateResponse> createMandate(@Valid @RequestBody CreateMandateRequest request) {
-        Currency currency = Currency.getInstance(request.currencyCode());
-        DirectDebitMandate mandate = directDebitService.createMandate(
-                request.mandateReference(), request.payerAccount(), request.payeeAccount(),
-                Money.of(request.maxAmount(), currency));
-        return ResponseEntity.created(URI.create("/api/v1/direct-debits/mandates/" + mandate.getMandateReference()))
-                .body(MandateResponse.from(mandate));
-    }
+  @PostMapping("/mandates")
+  public ResponseEntity<MandateResponse> createMandate(
+      @Valid @RequestBody CreateMandateRequest request) {
+    Currency currency = Currency.getInstance(request.currencyCode());
+    DirectDebitMandate mandate =
+        directDebitService.createMandate(
+            request.mandateReference(),
+            request.payerAccount(),
+            request.payeeAccount(),
+            Money.of(request.maxAmount(), currency));
+    return ResponseEntity.created(
+            URI.create("/api/v1/direct-debits/mandates/" + mandate.getMandateReference()))
+        .body(MandateResponse.from(mandate));
+  }
 
-    @GetMapping("/mandates/{reference}")
-    public MandateResponse getMandate(@PathVariable String reference) {
-        return MandateResponse.from(directDebitService.getMandate(reference));
-    }
+  @GetMapping("/mandates/{reference}")
+  public MandateResponse getMandate(@PathVariable String reference) {
+    return MandateResponse.from(directDebitService.getMandate(reference));
+  }
 
-    @PostMapping("/mandates/{reference}/cancel")
-    public MandateResponse cancelMandate(@PathVariable String reference) {
-        return MandateResponse.from(directDebitService.cancelMandate(reference));
-    }
+  @PostMapping("/mandates/{reference}/cancel")
+  public MandateResponse cancelMandate(@PathVariable String reference) {
+    return MandateResponse.from(directDebitService.cancelMandate(reference));
+  }
 
-    @PostMapping("/mandates/{reference}/collect")
-    public ResponseEntity<PaymentResponse> collect(
-            @PathVariable String reference, @Valid @RequestBody CollectRequest request) {
-        Currency currency = Currency.getInstance(request.currencyCode());
-        var payment = directDebitService.collect(
-                reference, Money.of(request.amount(), currency),
-                request.collectionReference(), request.narrative());
-        return ResponseEntity.status(201).body(PaymentResponse.from(payment));
-    }
+  @PostMapping("/mandates/{reference}/collect")
+  public ResponseEntity<PaymentResponse> collect(
+      @PathVariable String reference, @Valid @RequestBody CollectRequest request) {
+    Currency currency = Currency.getInstance(request.currencyCode());
+    var payment =
+        directDebitService.collect(
+            reference,
+            Money.of(request.amount(), currency),
+            request.collectionReference(),
+            request.narrative());
+    return ResponseEntity.status(201).body(PaymentResponse.from(payment));
+  }
 
-    public record CreateMandateRequest(
-            @NotBlank @Size(max = 60) String mandateReference,
-            @NotBlank @Size(max = 40) String payerAccount,
-            @NotBlank @Size(max = 40) String payeeAccount,
-            @NotNull @Positive BigDecimal maxAmount,
-            @NotNull @Pattern(regexp = "^[A-Z]{3}$", message = "currencyCode must be a 3-letter ISO-4217 code")
-            String currencyCode) {
-    }
+  public record CreateMandateRequest(
+      @NotBlank @Size(max = 60) String mandateReference,
+      @NotBlank @Size(max = 40) String payerAccount,
+      @NotBlank @Size(max = 40) String payeeAccount,
+      @NotNull @Positive BigDecimal maxAmount,
+      @NotNull
+          @Pattern(regexp = "^[A-Z]{3}$", message = "currencyCode must be a 3-letter ISO-4217 code")
+          String currencyCode) {}
 
-    public record CollectRequest(
-            @NotNull @Positive BigDecimal amount,
-            @NotNull @Pattern(regexp = "^[A-Z]{3}$", message = "currencyCode must be a 3-letter ISO-4217 code")
-            String currencyCode,
-            @NotBlank @Size(max = 77) String collectionReference,
-            @Size(max = 280) String narrative) {
-    }
+  public record CollectRequest(
+      @NotNull @Positive BigDecimal amount,
+      @NotNull
+          @Pattern(regexp = "^[A-Z]{3}$", message = "currencyCode must be a 3-letter ISO-4217 code")
+          String currencyCode,
+      @NotBlank @Size(max = 77) String collectionReference,
+      @Size(max = 280) String narrative) {}
 
-    public record MandateResponse(String mandateReference, String payerAccount, String payeeAccount,
-                                  String maxAmount, String currencyCode, MandateStatus status) {
-        static MandateResponse from(DirectDebitMandate m) {
-            return new MandateResponse(m.getMandateReference(), m.getPayerAccount(), m.getPayeeAccount(),
-                    m.getMaxAmount().toPlainString(), m.getCurrencyCode(), m.getStatus());
-        }
+  public record MandateResponse(
+      String mandateReference,
+      String payerAccount,
+      String payeeAccount,
+      String maxAmount,
+      String currencyCode,
+      MandateStatus status) {
+    static MandateResponse from(DirectDebitMandate m) {
+      return new MandateResponse(
+          m.getMandateReference(),
+          m.getPayerAccount(),
+          m.getPayeeAccount(),
+          m.getMaxAmount().toPlainString(),
+          m.getCurrencyCode(),
+          m.getStatus());
     }
+  }
 }

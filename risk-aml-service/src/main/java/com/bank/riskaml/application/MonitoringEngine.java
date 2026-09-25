@@ -14,36 +14,37 @@ import org.springframework.stereotype.Component;
 @Component
 public class MonitoringEngine {
 
-    private static final Set<String> HIGH_RISK_COUNTRIES = Set.of("XA", "XB", "XC");
+  private static final Set<String> HIGH_RISK_COUNTRIES = Set.of("XA", "XB", "XC");
 
-    private final BigDecimal largeAmountThreshold;
+  private final BigDecimal largeAmountThreshold;
 
-    public MonitoringEngine(@Value("${aml.large-amount-threshold:10000}") BigDecimal largeAmountThreshold) {
-        this.largeAmountThreshold = largeAmountThreshold;
+  public MonitoringEngine(
+      @Value("${aml.large-amount-threshold:10000}") BigDecimal largeAmountThreshold) {
+    this.largeAmountThreshold = largeAmountThreshold;
+  }
+
+  public Evaluation evaluate(Money amount, String counterpartyCountry) {
+    if (counterpartyCountry != null && HIGH_RISK_COUNTRIES.contains(counterpartyCountry)) {
+      return new Evaluation(Decision.HOLD, "HIGH_RISK_COUNTRY");
     }
-
-    public Evaluation evaluate(Money amount, String counterpartyCountry) {
-        if (counterpartyCountry != null && HIGH_RISK_COUNTRIES.contains(counterpartyCountry)) {
-            return new Evaluation(Decision.HOLD, "HIGH_RISK_COUNTRY");
-        }
-        if (amount.amount().compareTo(largeAmountThreshold) >= 0) {
-            return new Evaluation(Decision.HOLD, "LARGE_AMOUNT");
-        }
-        // Structuring: amounts just under the threshold (>= 90%).
-        BigDecimal ninetyPct = largeAmountThreshold.multiply(new BigDecimal("0.90"));
-        if (amount.amount().compareTo(ninetyPct) >= 0) {
-            return new Evaluation(Decision.ALLOW, "POSSIBLE_STRUCTURING");
-        }
-        return new Evaluation(Decision.ALLOW, null);
+    if (amount.amount().compareTo(largeAmountThreshold) >= 0) {
+      return new Evaluation(Decision.HOLD, "LARGE_AMOUNT");
     }
-
-    /**
-     * @param decision the monitoring decision
-     * @param ruleCode the rule that fired (null when nothing fired)
-     */
-    public record Evaluation(Decision decision, String ruleCode) {
-        public boolean alerted() {
-            return ruleCode != null;
-        }
+    // Structuring: amounts just under the threshold (>= 90%).
+    BigDecimal ninetyPct = largeAmountThreshold.multiply(new BigDecimal("0.90"));
+    if (amount.amount().compareTo(ninetyPct) >= 0) {
+      return new Evaluation(Decision.ALLOW, "POSSIBLE_STRUCTURING");
     }
+    return new Evaluation(Decision.ALLOW, null);
+  }
+
+  /**
+   * @param decision the monitoring decision
+   * @param ruleCode the rule that fired (null when nothing fired)
+   */
+  public record Evaluation(Decision decision, String ruleCode) {
+    public boolean alerted() {
+      return ruleCode != null;
+    }
+  }
 }

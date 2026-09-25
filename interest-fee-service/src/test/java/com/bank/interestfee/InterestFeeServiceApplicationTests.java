@@ -7,8 +7,8 @@ import org.springframework.context.annotation.Import;
 @Import(AbstractIntegrationTest.FakeLedgerConfig.class)
 class InterestFeeServiceApplicationTests extends AbstractIntegrationTest {
 
-    @Test
-    void contextLoads() {
-        // Fails if the application context cannot start.
-    }
+  @Test
+  void contextLoads() {
+    // Fails if the application context cannot start.
+  }
 }

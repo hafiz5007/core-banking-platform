@@ -8,15 +8,14 @@ import com.bank.customer.domain.KycStatus;
  */
 public interface KycVerificationPort {
 
-    KycVerificationResult verify(KycVerificationRequest request);
+  KycVerificationResult verify(KycVerificationRequest request);
 
-    record KycVerificationRequest(String firstName, String lastName, String nationality, String taxId) {
-    }
+  record KycVerificationRequest(
+      String firstName, String lastName, String nationality, String taxId) {}
 
-    /**
-     * @param status      verification outcome
-     * @param evidenceRef opaque reference to the evidence held by the provider (no PII)
-     */
-    record KycVerificationResult(KycStatus status, String evidenceRef) {
-    }
+  /**
+   * @param status verification outcome
+   * @param evidenceRef opaque reference to the evidence held by the provider (no PII)
+   */
+  record KycVerificationResult(KycStatus status, String evidenceRef) {}
 }

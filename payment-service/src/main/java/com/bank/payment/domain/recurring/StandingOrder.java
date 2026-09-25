@@ -22,130 +22,141 @@ import java.util.UUID;
 @Table(name = "standing_order")
 public class StandingOrder {
 
-    @Id
-    @Column(nullable = false, updatable = false)
-    private UUID id;
+  @Id
+  @Column(nullable = false, updatable = false)
+  private UUID id;
 
-    @Column(name = "debtor_account", nullable = false, updatable = false, length = 40)
-    private String debtorAccount;
+  @Column(name = "debtor_account", nullable = false, updatable = false, length = 40)
+  private String debtorAccount;
 
-    @Column(name = "creditor_account", nullable = false, updatable = false, length = 40)
-    private String creditorAccount;
+  @Column(name = "creditor_account", nullable = false, updatable = false, length = 40)
+  private String creditorAccount;
 
-    @Column(nullable = false, updatable = false, precision = 19, scale = 4)
-    private BigDecimal amount;
+  @Column(nullable = false, updatable = false, precision = 19, scale = 4)
+  private BigDecimal amount;
 
-    @Column(name = "currency_code", nullable = false, updatable = false, length = 3)
-    private String currencyCode;
+  @Column(name = "currency_code", nullable = false, updatable = false, length = 3)
+  private String currencyCode;
 
-    @Column(nullable = false, updatable = false, length = 280)
-    private String narrative;
+  @Column(nullable = false, updatable = false, length = 280)
+  private String narrative;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, updatable = false, length = 10)
-    private Frequency frequency;
+  @Enumerated(EnumType.STRING)
+  @Column(nullable = false, updatable = false, length = 10)
+  private Frequency frequency;
 
-    @Column(name = "next_run_date", nullable = false)
-    private LocalDate nextRunDate;
+  @Column(name = "next_run_date", nullable = false)
+  private LocalDate nextRunDate;
 
-    @Column(name = "end_date")
-    private LocalDate endDate;
+  @Column(name = "end_date")
+  private LocalDate endDate;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 10)
-    private StandingOrderStatus status;
+  @Enumerated(EnumType.STRING)
+  @Column(nullable = false, length = 10)
+  private StandingOrderStatus status;
 
-    @Version
-    @Column(nullable = false)
-    private long version;
+  @Version
+  @Column(nullable = false)
+  private long version;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private Instant createdAt;
+  @Column(name = "created_at", nullable = false, updatable = false)
+  private Instant createdAt;
 
-    protected StandingOrder() {
-        // Required by JPA.
+  protected StandingOrder() {
+    // Required by JPA.
+  }
+
+  private StandingOrder(
+      String debtorAccount,
+      String creditorAccount,
+      Money amount,
+      String narrative,
+      Frequency frequency,
+      LocalDate startDate,
+      LocalDate endDate) {
+    this.id = UUID.randomUUID();
+    this.debtorAccount = debtorAccount;
+    this.creditorAccount = creditorAccount;
+    this.amount = amount.amount();
+    this.currencyCode = amount.currency().getCurrencyCode();
+    this.narrative = narrative;
+    this.frequency = frequency;
+    this.nextRunDate = startDate;
+    this.endDate = endDate;
+    this.status = StandingOrderStatus.ACTIVE;
+    this.createdAt = Instant.now();
+  }
+
+  public static StandingOrder create(
+      String debtorAccount,
+      String creditorAccount,
+      Money amount,
+      String narrative,
+      Frequency frequency,
+      LocalDate startDate,
+      LocalDate endDate) {
+    return new StandingOrder(
+        debtorAccount, creditorAccount, amount, narrative, frequency, startDate, endDate);
+  }
+
+  public boolean isDue(LocalDate on) {
+    return status == StandingOrderStatus.ACTIVE && !nextRunDate.isAfter(on);
+  }
+
+  /** Advance to the next run date; complete the order once it passes its end date. */
+  public void advance() {
+    LocalDate next = frequency.next(nextRunDate);
+    if (endDate != null && next.isAfter(endDate)) {
+      this.status = StandingOrderStatus.COMPLETED;
     }
+    this.nextRunDate = next;
+  }
 
-    private StandingOrder(String debtorAccount, String creditorAccount, Money amount, String narrative,
-                          Frequency frequency, LocalDate startDate, LocalDate endDate) {
-        this.id = UUID.randomUUID();
-        this.debtorAccount = debtorAccount;
-        this.creditorAccount = creditorAccount;
-        this.amount = amount.amount();
-        this.currencyCode = amount.currency().getCurrencyCode();
-        this.narrative = narrative;
-        this.frequency = frequency;
-        this.nextRunDate = startDate;
-        this.endDate = endDate;
-        this.status = StandingOrderStatus.ACTIVE;
-        this.createdAt = Instant.now();
-    }
+  public void cancel() {
+    this.status = StandingOrderStatus.CANCELLED;
+  }
 
-    public static StandingOrder create(String debtorAccount, String creditorAccount, Money amount,
-                                       String narrative, Frequency frequency,
-                                       LocalDate startDate, LocalDate endDate) {
-        return new StandingOrder(debtorAccount, creditorAccount, amount, narrative,
-                frequency, startDate, endDate);
-    }
+  public Money money() {
+    return Money.of(amount, Currency.getInstance(currencyCode));
+  }
 
-    public boolean isDue(LocalDate on) {
-        return status == StandingOrderStatus.ACTIVE && !nextRunDate.isAfter(on);
-    }
+  public UUID getId() {
+    return id;
+  }
 
-    /** Advance to the next run date; complete the order once it passes its end date. */
-    public void advance() {
-        LocalDate next = frequency.next(nextRunDate);
-        if (endDate != null && next.isAfter(endDate)) {
-            this.status = StandingOrderStatus.COMPLETED;
-        }
-        this.nextRunDate = next;
-    }
+  public String getDebtorAccount() {
+    return debtorAccount;
+  }
 
-    public void cancel() {
-        this.status = StandingOrderStatus.CANCELLED;
-    }
+  public String getCreditorAccount() {
+    return creditorAccount;
+  }
 
-    public Money money() {
-        return Money.of(amount, Currency.getInstance(currencyCode));
-    }
+  public BigDecimal getAmount() {
+    return amount;
+  }
 
-    public UUID getId() {
-        return id;
-    }
+  public String getCurrencyCode() {
+    return currencyCode;
+  }
 
-    public String getDebtorAccount() {
-        return debtorAccount;
-    }
+  public String getNarrative() {
+    return narrative;
+  }
 
-    public String getCreditorAccount() {
-        return creditorAccount;
-    }
+  public Frequency getFrequency() {
+    return frequency;
+  }
 
-    public BigDecimal getAmount() {
-        return amount;
-    }
+  public LocalDate getNextRunDate() {
+    return nextRunDate;
+  }
 
-    public String getCurrencyCode() {
-        return currencyCode;
-    }
+  public LocalDate getEndDate() {
+    return endDate;
+  }
 
-    public String getNarrative() {
-        return narrative;
-    }
-
-    public Frequency getFrequency() {
-        return frequency;
-    }
-
-    public LocalDate getNextRunDate() {
-        return nextRunDate;
-    }
-
-    public LocalDate getEndDate() {
-        return endDate;
-    }
-
-    public StandingOrderStatus getStatus() {
-        return status;
-    }
+  public StandingOrderStatus getStatus() {
+    return status;
+  }
 }

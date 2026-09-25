@@ -22,69 +22,77 @@ import org.springframework.beans.factory.annotation.Autowired;
 /** Full-stack tests of the posting engine against a real PostgreSQL. */
 class LedgerPostingIT extends AbstractIntegrationTest {
 
-    private static final Currency USD = Currency.getInstance("USD");
+  private static final Currency USD = Currency.getInstance("USD");
 
-    @Autowired
-    LedgerService ledger;
+  @Autowired LedgerService ledger;
 
-    private String cash;
-    private String deposits;
+  private String cash;
+  private String deposits;
 
-    @BeforeEach
-    void setUpAccounts() {
-        // Unique codes per test so the shared container stays clean across tests.
-        String suffix = UUID.randomUUID().toString().substring(0, 8);
-        cash = "CASH-" + suffix;
-        deposits = "DEP-" + suffix;
-        ledger.createAccount(cash, "Cash", LedgerAccountType.ASSET, USD);
-        ledger.createAccount(deposits, "Customer Deposits", LedgerAccountType.LIABILITY, USD);
-    }
+  @BeforeEach
+  void setUpAccounts() {
+    // Unique codes per test so the shared container stays clean across tests.
+    String suffix = UUID.randomUUID().toString().substring(0, 8);
+    cash = "CASH-" + suffix;
+    deposits = "DEP-" + suffix;
+    ledger.createAccount(cash, "Cash", LedgerAccountType.ASSET, USD);
+    ledger.createAccount(deposits, "Customer Deposits", LedgerAccountType.LIABILITY, USD);
+  }
 
-    private PostingCommand transfer(String key, String amount) {
-        return new PostingCommand(key, "Customer deposit", null, List.of(
-                new LineCommand(cash, Direction.DEBIT, new BigDecimal(amount)),
-                new LineCommand(deposits, Direction.CREDIT, new BigDecimal(amount))));
-    }
+  private PostingCommand transfer(String key, String amount) {
+    return new PostingCommand(
+        key,
+        "Customer deposit",
+        null,
+        List.of(
+            new LineCommand(cash, Direction.DEBIT, new BigDecimal(amount)),
+            new LineCommand(deposits, Direction.CREDIT, new BigDecimal(amount))));
+  }
 
-    @Test
-    void postsBalancedEntryAndUpdatesBalances() {
-        ledger.post(transfer("k-" + cash, "100.00"));
+  @Test
+  void postsBalancedEntryAndUpdatesBalances() {
+    ledger.post(transfer("k-" + cash, "100.00"));
 
-        assertThat(ledger.getAccount(cash).normalBalance().amount()).isEqualByComparingTo("100.00");
-        assertThat(ledger.getAccount(deposits).normalBalance().amount()).isEqualByComparingTo("100.00");
+    assertThat(ledger.getAccount(cash).normalBalance().amount()).isEqualByComparingTo("100.00");
+    assertThat(ledger.getAccount(deposits).normalBalance().amount()).isEqualByComparingTo("100.00");
 
-        var tb = ledger.trialBalance();
-        assertThat(tb.balanced()).isTrue();
-        assertThat(tb.totalDebits()).isEqualByComparingTo(tb.totalCredits());
-    }
+    var tb = ledger.trialBalance();
+    assertThat(tb.balanced()).isTrue();
+    assertThat(tb.totalDebits()).isEqualByComparingTo(tb.totalCredits());
+  }
 
-    @Test
-    void replayWithSameKeyDoesNotDoublePost() {
-        String key = "idem-" + cash;
-        JournalEntry first = ledger.post(transfer(key, "100.00"));
-        JournalEntry second = ledger.post(transfer(key, "100.00"));
+  @Test
+  void replayWithSameKeyDoesNotDoublePost() {
+    String key = "idem-" + cash;
+    JournalEntry first = ledger.post(transfer(key, "100.00"));
+    JournalEntry second = ledger.post(transfer(key, "100.00"));
 
-        assertThat(second.getId()).isEqualTo(first.getId());
-        // Balance reflects a single posting, not two.
-        assertThat(ledger.getAccount(cash).normalBalance().amount()).isEqualByComparingTo("100.00");
-    }
+    assertThat(second.getId()).isEqualTo(first.getId());
+    // Balance reflects a single posting, not two.
+    assertThat(ledger.getAccount(cash).normalBalance().amount()).isEqualByComparingTo("100.00");
+  }
 
-    @Test
-    void reversalRestoresBalances() {
-        JournalEntry posted = ledger.post(transfer("rev-" + cash, "100.00"));
-        ledger.reverse(posted.getId(), "reversal-" + cash);
+  @Test
+  void reversalRestoresBalances() {
+    JournalEntry posted = ledger.post(transfer("rev-" + cash, "100.00"));
+    ledger.reverse(posted.getId(), "reversal-" + cash);
 
-        assertThat(ledger.getAccount(cash).normalBalance().amount()).isEqualByComparingTo("0.00");
-        assertThat(ledger.getAccount(deposits).normalBalance().amount()).isEqualByComparingTo("0.00");
-        assertThat(ledger.getEntry(posted.getId()).getStatus()).isEqualTo(EntryStatus.REVERSED);
-        assertThat(ledger.trialBalance().balanced()).isTrue();
-    }
+    assertThat(ledger.getAccount(cash).normalBalance().amount()).isEqualByComparingTo("0.00");
+    assertThat(ledger.getAccount(deposits).normalBalance().amount()).isEqualByComparingTo("0.00");
+    assertThat(ledger.getEntry(posted.getId()).getStatus()).isEqualTo(EntryStatus.REVERSED);
+    assertThat(ledger.trialBalance().balanced()).isTrue();
+  }
 
-    @Test
-    void rejectsUnbalancedEntry() {
-        PostingCommand bad = new PostingCommand("bad-" + cash, "Bad", null, List.of(
+  @Test
+  void rejectsUnbalancedEntry() {
+    PostingCommand bad =
+        new PostingCommand(
+            "bad-" + cash,
+            "Bad",
+            null,
+            List.of(
                 new LineCommand(cash, Direction.DEBIT, new BigDecimal("100.00")),
                 new LineCommand(deposits, Direction.CREDIT, new BigDecimal("90.00"))));
-        assertThatThrownBy(() -> ledger.post(bad)).isInstanceOf(BusinessException.class);
-    }
+    assertThatThrownBy(() -> ledger.post(bad)).isInstanceOf(BusinessException.class);
+  }
 }

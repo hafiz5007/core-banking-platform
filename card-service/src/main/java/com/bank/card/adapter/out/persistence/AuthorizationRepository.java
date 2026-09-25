@@ -4,5 +4,4 @@ import com.bank.card.domain.Authorization;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface AuthorizationRepository extends JpaRepository<Authorization, UUID> {
-}
+public interface AuthorizationRepository extends JpaRepository<Authorization, UUID> {}

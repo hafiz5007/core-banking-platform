@@ -24,133 +24,147 @@ import java.util.stream.Collectors;
 @Table(name = "open_banking_consent")
 public class OpenBankingConsent {
 
-    @Id
-    @Column(nullable = false, updatable = false)
-    private UUID id;
+  @Id
+  @Column(nullable = false, updatable = false)
+  private UUID id;
 
-    @Column(name = "consent_reference", nullable = false, unique = true, updatable = false, length = 60)
-    private String consentReference;
+  @Column(
+      name = "consent_reference",
+      nullable = false,
+      unique = true,
+      updatable = false,
+      length = 60)
+  private String consentReference;
 
-    @Column(name = "customer_id", nullable = false, updatable = false)
-    private UUID customerId;
+  @Column(name = "customer_id", nullable = false, updatable = false)
+  private UUID customerId;
 
-    @Column(nullable = false, updatable = false, length = 120)
-    private String tpp;
+  @Column(nullable = false, updatable = false, length = 120)
+  private String tpp;
 
-    /** Comma-separated scope names. */
-    @Column(nullable = false, updatable = false, length = 200)
-    private String scopes;
+  /** Comma-separated scope names. */
+  @Column(nullable = false, updatable = false, length = 200)
+  private String scopes;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 24)
-    private ConsentStatus status;
+  @Enumerated(EnumType.STRING)
+  @Column(nullable = false, length = 24)
+  private ConsentStatus status;
 
-    @Column(name = "sca_reference", length = 80)
-    private String scaReference;
+  @Column(name = "sca_reference", length = 80)
+  private String scaReference;
 
-    @Column(name = "expires_at", nullable = false)
-    private Instant expiresAt;
+  @Column(name = "expires_at", nullable = false)
+  private Instant expiresAt;
 
-    @Version
-    @Column(nullable = false)
-    private long version;
+  @Version
+  @Column(nullable = false)
+  private long version;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private Instant createdAt;
+  @Column(name = "created_at", nullable = false, updatable = false)
+  private Instant createdAt;
 
-    protected OpenBankingConsent() {
-        // Required by JPA.
+  protected OpenBankingConsent() {
+    // Required by JPA.
+  }
+
+  private OpenBankingConsent(
+      String consentReference,
+      UUID customerId,
+      String tpp,
+      Set<ConsentScope> scopes,
+      Instant expiresAt) {
+    this.id = UUID.randomUUID();
+    this.consentReference = consentReference;
+    this.customerId = customerId;
+    this.tpp = tpp;
+    this.scopes = scopes.stream().map(Enum::name).collect(Collectors.joining(","));
+    this.status = ConsentStatus.AWAITING_AUTHORISATION;
+    this.expiresAt = expiresAt;
+    this.createdAt = Instant.now();
+  }
+
+  public static OpenBankingConsent request(
+      String consentReference,
+      UUID customerId,
+      String tpp,
+      Set<ConsentScope> scopes,
+      Instant expiresAt) {
+    if (scopes == null || scopes.isEmpty()) {
+      throw new BusinessException(ErrorCode.VALIDATION_FAILED, "At least one scope is required");
     }
+    return new OpenBankingConsent(consentReference, customerId, tpp, scopes, expiresAt);
+  }
 
-    private OpenBankingConsent(String consentReference, UUID customerId, String tpp,
-                               Set<ConsentScope> scopes, Instant expiresAt) {
-        this.id = UUID.randomUUID();
-        this.consentReference = consentReference;
-        this.customerId = customerId;
-        this.tpp = tpp;
-        this.scopes = scopes.stream().map(Enum::name).collect(Collectors.joining(","));
-        this.status = ConsentStatus.AWAITING_AUTHORISATION;
-        this.expiresAt = expiresAt;
-        this.createdAt = Instant.now();
+  /** Authorise the consent with an SCA reference (proof of strong customer authentication). */
+  public void authorise(String scaReference) {
+    refreshExpiry();
+    if (status != ConsentStatus.AWAITING_AUTHORISATION) {
+      throw new BusinessException(
+          ErrorCode.BUSINESS_RULE_VIOLATION, "Consent cannot be authorised from status " + status);
     }
+    if (scaReference == null || scaReference.isBlank()) {
+      throw new BusinessException(
+          ErrorCode.BUSINESS_RULE_VIOLATION,
+          "Strong customer authentication is required to authorise consent");
+    }
+    this.scaReference = scaReference;
+    this.status = ConsentStatus.ACTIVE;
+  }
 
-    public static OpenBankingConsent request(String consentReference, UUID customerId, String tpp,
-                                             Set<ConsentScope> scopes, Instant expiresAt) {
-        if (scopes == null || scopes.isEmpty()) {
-            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "At least one scope is required");
-        }
-        return new OpenBankingConsent(consentReference, customerId, tpp, scopes, expiresAt);
-    }
+  public void revoke() {
+    this.status = ConsentStatus.REVOKED;
+  }
 
-    /** Authorise the consent with an SCA reference (proof of strong customer authentication). */
-    public void authorise(String scaReference) {
-        refreshExpiry();
-        if (status != ConsentStatus.AWAITING_AUTHORISATION) {
-            throw new BusinessException(ErrorCode.BUSINESS_RULE_VIOLATION,
-                    "Consent cannot be authorised from status " + status);
-        }
-        if (scaReference == null || scaReference.isBlank()) {
-            throw new BusinessException(ErrorCode.BUSINESS_RULE_VIOLATION,
-                    "Strong customer authentication is required to authorise consent");
-        }
-        this.scaReference = scaReference;
-        this.status = ConsentStatus.ACTIVE;
+  /** Lazily expire the consent if its validity window has passed. */
+  public void refreshExpiry() {
+    if ((status == ConsentStatus.ACTIVE || status == ConsentStatus.AWAITING_AUTHORISATION)
+        && Instant.now().isAfter(expiresAt)) {
+      this.status = ConsentStatus.EXPIRED;
     }
+  }
 
-    public void revoke() {
-        this.status = ConsentStatus.REVOKED;
-    }
+  public boolean isActive() {
+    refreshExpiry();
+    return status == ConsentStatus.ACTIVE;
+  }
 
-    /** Lazily expire the consent if its validity window has passed. */
-    public void refreshExpiry() {
-        if ((status == ConsentStatus.ACTIVE || status == ConsentStatus.AWAITING_AUTHORISATION)
-                && Instant.now().isAfter(expiresAt)) {
-            this.status = ConsentStatus.EXPIRED;
-        }
+  public Set<ConsentScope> scopeSet() {
+    EnumSet<ConsentScope> set = EnumSet.noneOf(ConsentScope.class);
+    for (String s : scopes.split(",")) {
+      set.add(ConsentScope.valueOf(s));
     }
+    return set;
+  }
 
-    public boolean isActive() {
-        refreshExpiry();
-        return status == ConsentStatus.ACTIVE;
-    }
+  public UUID getId() {
+    return id;
+  }
 
-    public Set<ConsentScope> scopeSet() {
-        EnumSet<ConsentScope> set = EnumSet.noneOf(ConsentScope.class);
-        for (String s : scopes.split(",")) {
-            set.add(ConsentScope.valueOf(s));
-        }
-        return set;
-    }
+  public String getConsentReference() {
+    return consentReference;
+  }
 
-    public UUID getId() {
-        return id;
-    }
+  public UUID getCustomerId() {
+    return customerId;
+  }
 
-    public String getConsentReference() {
-        return consentReference;
-    }
+  public String getTpp() {
+    return tpp;
+  }
 
-    public UUID getCustomerId() {
-        return customerId;
-    }
+  public String getScopes() {
+    return scopes;
+  }
 
-    public String getTpp() {
-        return tpp;
-    }
+  public ConsentStatus getStatus() {
+    return status;
+  }
 
-    public String getScopes() {
-        return scopes;
-    }
+  public String getScaReference() {
+    return scaReference;
+  }
 
-    public ConsentStatus getStatus() {
-        return status;
-    }
-
-    public String getScaReference() {
-        return scaReference;
-    }
-
-    public Instant getExpiresAt() {
-        return expiresAt;
-    }
+  public Instant getExpiresAt() {
+    return expiresAt;
+  }
 }

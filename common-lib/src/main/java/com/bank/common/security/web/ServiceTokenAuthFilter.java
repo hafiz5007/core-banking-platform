@@ -23,65 +23,71 @@ import org.slf4j.LoggerFactory;
  */
 public class ServiceTokenAuthFilter extends HttpFilter {
 
-    private static final Logger log = LoggerFactory.getLogger(ServiceTokenAuthFilter.class);
-    private static final String BEARER = "Bearer ";
+  private static final Logger log = LoggerFactory.getLogger(ServiceTokenAuthFilter.class);
+  private static final String BEARER = "Bearer ";
 
-    /** Infrastructure endpoints that must answer without a token. */
-    public static final List<String> DEFAULT_OPEN_PATHS =
-            List.of("/actuator", "/v3/api-docs", "/swagger-ui");
+  /** Infrastructure endpoints that must answer without a token. */
+  public static final List<String> DEFAULT_OPEN_PATHS =
+      List.of("/actuator", "/v3/api-docs", "/swagger-ui");
 
-    /** The verified caller service name, for handlers and logging. */
-    public static final String CALLER_ATTRIBUTE = "com.bank.callerService";
+  /** The verified caller service name, for handlers and logging. */
+  public static final String CALLER_ATTRIBUTE = "com.bank.callerService";
 
-    private final ServiceTokenVerifier verifier;
-    private final List<String> openPaths;
+  private final ServiceTokenVerifier verifier;
+  private final List<String> openPaths;
 
-    public ServiceTokenAuthFilter(ServiceTokenVerifier verifier) {
-        this(verifier, DEFAULT_OPEN_PATHS);
+  public ServiceTokenAuthFilter(ServiceTokenVerifier verifier) {
+    this(verifier, DEFAULT_OPEN_PATHS);
+  }
+
+  public ServiceTokenAuthFilter(ServiceTokenVerifier verifier, List<String> openPaths) {
+    this.verifier = verifier;
+    this.openPaths = List.copyOf(openPaths);
+  }
+
+  @Override
+  protected void doFilter(
+      HttpServletRequest request, HttpServletResponse response, FilterChain chain)
+      throws IOException, ServletException {
+    if (isOpen(request)) {
+      chain.doFilter(request, response);
+      return;
     }
-
-    public ServiceTokenAuthFilter(ServiceTokenVerifier verifier, List<String> openPaths) {
-        this.verifier = verifier;
-        this.openPaths = List.copyOf(openPaths);
+    String header = request.getHeader("Authorization");
+    String token =
+        header != null && header.startsWith(BEARER) ? header.substring(BEARER.length()) : header;
+    try {
+      var claims = verifier.verify(token, null);
+      request.setAttribute(CALLER_ATTRIBUTE, claims.getSubject());
+      chain.doFilter(request, response);
+    } catch (InvalidServiceTokenException e) {
+      log.warn("Rejected {} {}: {}", request.getMethod(), request.getRequestURI(), e.getMessage());
+      unauthorized(response, e.getMessage());
     }
+  }
 
-    @Override
-    protected void doFilter(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
-            throws IOException, ServletException {
-        if (isOpen(request)) {
-            chain.doFilter(request, response);
-            return;
-        }
-        String header = request.getHeader("Authorization");
-        String token = header != null && header.startsWith(BEARER) ? header.substring(BEARER.length()) : header;
-        try {
-            var claims = verifier.verify(token, null);
-            request.setAttribute(CALLER_ATTRIBUTE, claims.getSubject());
-            chain.doFilter(request, response);
-        } catch (InvalidServiceTokenException e) {
-            log.warn("Rejected {} {}: {}", request.getMethod(), request.getRequestURI(), e.getMessage());
-            unauthorized(response, e.getMessage());
-        }
-    }
+  private boolean isOpen(HttpServletRequest request) {
+    String path = request.getRequestURI();
+    return openPaths.stream().anyMatch(path::startsWith);
+  }
 
-    private boolean isOpen(HttpServletRequest request) {
-        String path = request.getRequestURI();
-        return openPaths.stream().anyMatch(path::startsWith);
-    }
-
-    /**
-     * Written by hand rather than through Jackson: this filter runs before Spring's message
-     * converters are in play, and the payload is a fixed shape.
-     */
-    private static void unauthorized(HttpServletResponse response, String reason) throws IOException {
-        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-        response.setContentType("application/problem+json");
-        response.getWriter().write("""
+  /**
+   * Written by hand rather than through Jackson: this filter runs before Spring's message
+   * converters are in play, and the payload is a fixed shape.
+   */
+  private static void unauthorized(HttpServletResponse response, String reason) throws IOException {
+    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+    response.setContentType("application/problem+json");
+    response
+        .getWriter()
+        .write(
+            """
                 {"code":"%s","message":"%s","status":401,"correlationId":"%s"}"""
-                .formatted(ErrorCode.UNAUTHENTICATED, escape(reason), CorrelationIdFilter.current()));
-    }
+                .formatted(
+                    ErrorCode.UNAUTHENTICATED, escape(reason), CorrelationIdFilter.current()));
+  }
 
-    private static String escape(String value) {
-        return value == null ? "" : value.replace("\\", "\\\\").replace("\"", "\\\"");
-    }
+  private static String escape(String value) {
+    return value == null ? "" : value.replace("\\", "\\\\").replace("\"", "\\\"");
+  }
 }

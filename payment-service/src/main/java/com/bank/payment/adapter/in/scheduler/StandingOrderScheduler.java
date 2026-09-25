@@ -16,17 +16,17 @@ import org.springframework.stereotype.Component;
 @ConditionalOnProperty(value = "standing-orders.scheduler.enabled", havingValue = "true")
 public class StandingOrderScheduler {
 
-    private static final Logger log = LoggerFactory.getLogger(StandingOrderScheduler.class);
+  private static final Logger log = LoggerFactory.getLogger(StandingOrderScheduler.class);
 
-    private final StandingOrderService standingOrderService;
+  private final StandingOrderService standingOrderService;
 
-    public StandingOrderScheduler(StandingOrderService standingOrderService) {
-        this.standingOrderService = standingOrderService;
-    }
+  public StandingOrderScheduler(StandingOrderService standingOrderService) {
+    this.standingOrderService = standingOrderService;
+  }
 
-    @Scheduled(cron = "${standing-orders.scheduler.cron:0 30 0 * * *}")
-    public void run() {
-        int executed = standingOrderService.runDue(LocalDate.now());
-        log.info("Scheduled standing-order run executed {} orders", executed);
-    }
+  @Scheduled(cron = "${standing-orders.scheduler.cron:0 30 0 * * *}")
+  public void run() {
+    int executed = standingOrderService.runDue(LocalDate.now());
+    log.info("Scheduled standing-order run executed {} orders", executed);
+  }
 }

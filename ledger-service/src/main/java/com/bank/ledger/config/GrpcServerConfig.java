@@ -16,8 +16,8 @@ import org.springframework.context.SmartLifecycle;
 import org.springframework.stereotype.Component;
 
 /**
- * Runs the gRPC server alongside the HTTP one, on its own port. Enabled with
- * {@code grpc.server.enabled=true} so REST-only deployments are unchanged.
+ * Runs the gRPC server alongside the HTTP one, on its own port. Enabled with {@code
+ * grpc.server.enabled=true} so REST-only deployments are unchanged.
  *
  * <p>A {@link SmartLifecycle} rather than a plain bean so the port is bound after the context is
  * ready and released on shutdown; tests bind port 0 and read the assigned port back.
@@ -26,66 +26,72 @@ import org.springframework.stereotype.Component;
 @ConditionalOnProperty(name = "grpc.server.enabled", havingValue = "true")
 public class GrpcServerConfig implements SmartLifecycle {
 
-    private static final Logger log = LoggerFactory.getLogger(GrpcServerConfig.class);
+  private static final Logger log = LoggerFactory.getLogger(GrpcServerConfig.class);
 
-    private final List<BindableService> services;
-    private final List<ServerInterceptor> interceptors;
-    private final int configuredPort;
-    private final long shutdownTimeoutSeconds;
+  private final List<BindableService> services;
+  private final List<ServerInterceptor> interceptors;
+  private final int configuredPort;
+  private final long shutdownTimeoutSeconds;
 
-    private Server server;
+  private Server server;
 
-    public GrpcServerConfig(List<BindableService> services,
-                            List<ServerInterceptor> interceptors,
-                            @Value("${grpc.server.port:9090}") int configuredPort,
-                            @Value("${grpc.server.shutdown-timeout-seconds:10}") long shutdownTimeoutSeconds) {
-        this.services = services;
-        this.interceptors = interceptors;
-        this.configuredPort = configuredPort;
-        this.shutdownTimeoutSeconds = shutdownTimeoutSeconds;
+  public GrpcServerConfig(
+      List<BindableService> services,
+      List<ServerInterceptor> interceptors,
+      @Value("${grpc.server.port:9090}") int configuredPort,
+      @Value("${grpc.server.shutdown-timeout-seconds:10}") long shutdownTimeoutSeconds) {
+    this.services = services;
+    this.interceptors = interceptors;
+    this.configuredPort = configuredPort;
+    this.shutdownTimeoutSeconds = shutdownTimeoutSeconds;
+  }
+
+  @Override
+  public void start() {
+    if (isRunning()) {
+      return;
     }
-
-    @Override
-    public void start() {
-        if (isRunning()) {
-            return;
-        }
-        ServerBuilder<?> builder = ServerBuilder.forPort(configuredPort);
-        // Interceptors run before the handler, so an unauthenticated call never reaches business code.
-        services.forEach(service -> builder.addService(ServerInterceptors.intercept(service, interceptors)));
-        try {
-            server = builder.build().start();
-        } catch (IOException e) {
-            throw new IllegalStateException("Unable to start the gRPC server on port " + configuredPort, e);
-        }
-        log.info("gRPC server listening on port {} with {} service(s) and {} interceptor(s)",
-                server.getPort(), services.size(), interceptors.size());
+    ServerBuilder<?> builder = ServerBuilder.forPort(configuredPort);
+    // Interceptors run before the handler, so an unauthenticated call never reaches business code.
+    services.forEach(
+        service -> builder.addService(ServerInterceptors.intercept(service, interceptors)));
+    try {
+      server = builder.build().start();
+    } catch (IOException e) {
+      throw new IllegalStateException(
+          "Unable to start the gRPC server on port " + configuredPort, e);
     }
+    log.info(
+        "gRPC server listening on port {} with {} service(s) and {} interceptor(s)",
+        server.getPort(),
+        services.size(),
+        interceptors.size());
+  }
 
-    @Override
-    public void stop() {
-        if (server == null) {
-            return;
-        }
-        try {
-            server.shutdown().awaitTermination(shutdownTimeoutSeconds, TimeUnit.SECONDS);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        } finally {
-            server = null;
-        }
+  @Override
+  public void stop() {
+    if (server == null) {
+      return;
     }
+    try {
+      server.shutdown().awaitTermination(shutdownTimeoutSeconds, TimeUnit.SECONDS);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+    } finally {
+      server = null;
+    }
+  }
 
-    @Override
-    public boolean isRunning() {
-        return server != null && !server.isShutdown();
-    }
+  @Override
+  public boolean isRunning() {
+    return server != null && !server.isShutdown();
+  }
 
-    /** The bound port; with {@code grpc.server.port=0} this is the one the OS assigned. */
-    public int port() {
-        if (server == null) {
-            throw new IllegalStateException("gRPC server is not running");
-        }
-        return server.getPort();
+  /** The bound port; with {@code grpc.server.port=0} this is the one the OS assigned. */
+  public int port() {
+    if (server == null) {
+      throw new IllegalStateException("gRPC server is not running");
     }
+    return server.getPort();
+  }
 }

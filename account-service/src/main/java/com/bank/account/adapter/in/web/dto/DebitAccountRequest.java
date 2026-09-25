@@ -12,9 +12,9 @@ import java.math.BigDecimal;
  * (ADR-007); {@code idempotencyKey} makes a retry safe.
  */
 public record DebitAccountRequest(
-        @NotBlank @Size(max = 80) String idempotencyKey,
-        @NotNull @Positive BigDecimal amount,
-        @NotNull @Pattern(regexp = "^[A-Z]{3}$", message = "currencyCode must be a 3-letter ISO-4217 code")
+    @NotBlank @Size(max = 80) String idempotencyKey,
+    @NotNull @Positive BigDecimal amount,
+    @NotNull
+        @Pattern(regexp = "^[A-Z]{3}$", message = "currencyCode must be a 3-letter ISO-4217 code")
         String currencyCode,
-        @Size(max = 280) String narrative) {
-}
+    @Size(max = 280) String narrative) {}

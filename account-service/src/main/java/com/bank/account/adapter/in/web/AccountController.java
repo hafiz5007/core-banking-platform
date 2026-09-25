@@ -1,5 +1,3 @@
-
-
 package com.bank.account.adapter.in.web;
 
 import com.bank.account.adapter.in.web.dto.AccountHolderResponse;
@@ -29,60 +27,66 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/accounts")
 public class AccountController {
 
-    private final AccountService accountService;
-    private final ChangeLogRecorder changeLog;
+  private final AccountService accountService;
+  private final ChangeLogRecorder changeLog;
 
-    public AccountController(AccountService accountService, ChangeLogRecorder changeLog) {
-        this.accountService = accountService;
-        this.changeLog = changeLog;
-    }
+  public AccountController(AccountService accountService, ChangeLogRecorder changeLog) {
+    this.accountService = accountService;
+    this.changeLog = changeLog;
+  }
 
-    @PostMapping
-    public ResponseEntity<AccountResponse> open(@Valid @RequestBody OpenAccountRequest request) {
-        Account account = accountService.openAccount(
-                request.customerId(),
-                request.accountType(),
-                Currency.getInstance(request.currencyCode()));
-        return ResponseEntity
-                .created(URI.create("/api/v1/accounts/" + account.getId()))
-                .body(AccountResponse.from(account));
-    }
+  @PostMapping
+  public ResponseEntity<AccountResponse> open(@Valid @RequestBody OpenAccountRequest request) {
+    Account account =
+        accountService.openAccount(
+            request.customerId(),
+            request.accountType(),
+            Currency.getInstance(request.currencyCode()));
+    return ResponseEntity.created(URI.create("/api/v1/accounts/" + account.getId()))
+        .body(AccountResponse.from(account));
+  }
 
-    @PostMapping("/from-product")
-    public ResponseEntity<AccountResponse> openFromProduct(@Valid @RequestBody OpenFromProductRequest request) {
-        Account account = accountService.openFromProduct(
-                request.productCode(), request.primaryCustomerId(),
-                request.additionalHolders(), request.mandateType());
-        return ResponseEntity
-                .created(URI.create("/api/v1/accounts/" + account.getId()))
-                .body(AccountResponse.from(account));
-    }
+  @PostMapping("/from-product")
+  public ResponseEntity<AccountResponse> openFromProduct(
+      @Valid @RequestBody OpenFromProductRequest request) {
+    Account account =
+        accountService.openFromProduct(
+            request.productCode(), request.primaryCustomerId(),
+            request.additionalHolders(), request.mandateType());
+    return ResponseEntity.created(URI.create("/api/v1/accounts/" + account.getId()))
+        .body(AccountResponse.from(account));
+  }
 
-    /** Debit an account; the matching double-entry is posted to ledger-service over gRPC (ADR-007). */
-    @PostMapping("/{id}/debit")
-    public AccountResponse debit(@PathVariable UUID id, @Valid @RequestBody DebitAccountRequest request) {
-        Account account = accountService.debitAccount(
-                id,
-                Money.of(request.amount(), Currency.getInstance(request.currencyCode())),
-                request.narrative(),
-                request.idempotencyKey());
-        return AccountResponse.from(account);
-    }
+  /**
+   * Debit an account; the matching double-entry is posted to ledger-service over gRPC (ADR-007).
+   */
+  @PostMapping("/{id}/debit")
+  public AccountResponse debit(
+      @PathVariable UUID id, @Valid @RequestBody DebitAccountRequest request) {
+    Account account =
+        accountService.debitAccount(
+            id,
+            Money.of(request.amount(), Currency.getInstance(request.currencyCode())),
+            request.narrative(),
+            request.idempotencyKey());
+    return AccountResponse.from(account);
+  }
 
-    @GetMapping("/{id}")
-    public AccountResponse get(@PathVariable UUID id) {
-        return AccountResponse.from(accountService.getAccount(id));
-    }
+  @GetMapping("/{id}")
+  public AccountResponse get(@PathVariable UUID id) {
+    return AccountResponse.from(accountService.getAccount(id));
+  }
 
-    @GetMapping("/{id}/holders")
-    public List<AccountHolderResponse> holders(@PathVariable UUID id) {
-        return accountService.holdersOf(id).stream().map(AccountHolderResponse::from).toList();
-    }
+  @GetMapping("/{id}/holders")
+  public List<AccountHolderResponse> holders(@PathVariable UUID id) {
+    return accountService.holdersOf(id).stream().map(AccountHolderResponse::from).toList();
+  }
 
-    @GetMapping("/{id}/change-log")
-    public List<ChangeLogResponse> changeLog(@PathVariable UUID id) {
-        accountService.getAccount(id); // 404 if unknown
-        return changeLog.history("Account", id.toString()).stream().map(ChangeLogResponse::from).toList();
-    }
+  @GetMapping("/{id}/change-log")
+  public List<ChangeLogResponse> changeLog(@PathVariable UUID id) {
+    accountService.getAccount(id); // 404 if unknown
+    return changeLog.history("Account", id.toString()).stream()
+        .map(ChangeLogResponse::from)
+        .toList();
+  }
 }
-

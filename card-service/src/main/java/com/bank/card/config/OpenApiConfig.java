@@ -9,12 +9,14 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class OpenApiConfig {
 
-    @Bean
-    OpenAPI cardServiceOpenApi() {
-        return new OpenAPI().info(new Info()
+  @Bean
+  OpenAPI cardServiceOpenApi() {
+    return new OpenAPI()
+        .info(
+            new Info()
                 .title("Card Service API")
                 .version("v1")
                 .description("Debit card issuance and real-time authorization. Sprint 8.")
                 .license(new License().name("Proprietary")));
-    }
+  }
 }

@@ -12,21 +12,23 @@ import org.springframework.stereotype.Component;
 @Component
 public class StubFxAdapter implements FxPort {
 
-    private static final BigDecimal DEFAULT_SPREAD = new BigDecimal("0.0050");
-    private static final Map<String, BigDecimal> RATES = Map.of(
-            "USD>EUR", new BigDecimal("0.92"),
-            "EUR>USD", new BigDecimal("1.087"),
-            "USD>GBP", new BigDecimal("0.79"),
-            "GBP>USD", new BigDecimal("1.266"),
-            "EUR>GBP", new BigDecimal("0.86"),
-            "GBP>EUR", new BigDecimal("1.163"));
+  private static final BigDecimal DEFAULT_SPREAD = new BigDecimal("0.0050");
+  private static final Map<String, BigDecimal> RATES =
+      Map.of(
+          "USD>EUR", new BigDecimal("0.92"),
+          "EUR>USD", new BigDecimal("1.087"),
+          "USD>GBP", new BigDecimal("0.79"),
+          "GBP>USD", new BigDecimal("1.266"),
+          "EUR>GBP", new BigDecimal("0.86"),
+          "GBP>EUR", new BigDecimal("1.163"));
 
-    @Override
-    public FxQuote quote(String sourceCurrency, String targetCurrency) {
-        if (sourceCurrency.equals(targetCurrency)) {
-            return new FxQuote(sourceCurrency, targetCurrency, BigDecimal.ONE, BigDecimal.ZERO);
-        }
-        BigDecimal rate = RATES.getOrDefault(sourceCurrency + ">" + targetCurrency, new BigDecimal("1.10"));
-        return new FxQuote(sourceCurrency, targetCurrency, rate, DEFAULT_SPREAD);
+  @Override
+  public FxQuote quote(String sourceCurrency, String targetCurrency) {
+    if (sourceCurrency.equals(targetCurrency)) {
+      return new FxQuote(sourceCurrency, targetCurrency, BigDecimal.ONE, BigDecimal.ZERO);
     }
+    BigDecimal rate =
+        RATES.getOrDefault(sourceCurrency + ">" + targetCurrency, new BigDecimal("1.10"));
+    return new FxQuote(sourceCurrency, targetCurrency, rate, DEFAULT_SPREAD);
+  }
 }

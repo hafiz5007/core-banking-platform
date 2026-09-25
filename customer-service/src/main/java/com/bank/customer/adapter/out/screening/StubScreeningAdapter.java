@@ -13,11 +13,10 @@ import org.springframework.stereotype.Component;
 @Component
 public class StubScreeningAdapter implements ScreeningPort {
 
-    @Override
-    public ScreeningResult screen(ScreeningRequest request) {
-        boolean match = request.lastName() != null
-                && request.lastName().equalsIgnoreCase("SANCTIONED");
-        String caseRef = match ? "case-" + UUID.randomUUID() : null;
-        return new ScreeningResult(match, caseRef);
-    }
+  @Override
+  public ScreeningResult screen(ScreeningRequest request) {
+    boolean match = request.lastName() != null && request.lastName().equalsIgnoreCase("SANCTIONED");
+    String caseRef = match ? "case-" + UUID.randomUUID() : null;
+    return new ScreeningResult(match, caseRef);
+  }
 }

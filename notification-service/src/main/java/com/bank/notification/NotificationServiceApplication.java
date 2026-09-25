@@ -11,25 +11,25 @@ import org.springframework.core.Ordered;
 @SpringBootApplication
 public class NotificationServiceApplication {
 
-    public static void main(String[] args) {
-        SpringApplication.run(NotificationServiceApplication.class, args);
-    }
+  public static void main(String[] args) {
+    SpringApplication.run(NotificationServiceApplication.class, args);
+  }
 
-    @Bean
-    FilterRegistrationBean<CorrelationIdFilter> correlationIdFilter() {
-        FilterRegistrationBean<CorrelationIdFilter> registration =
-                new FilterRegistrationBean<>(new CorrelationIdFilter());
-        registration.setOrder(Ordered.HIGHEST_PRECEDENCE);
-        registration.addUrlPatterns("/*");
-        return registration;
-    }
+  @Bean
+  FilterRegistrationBean<CorrelationIdFilter> correlationIdFilter() {
+    FilterRegistrationBean<CorrelationIdFilter> registration =
+        new FilterRegistrationBean<>(new CorrelationIdFilter());
+    registration.setOrder(Ordered.HIGHEST_PRECEDENCE);
+    registration.addUrlPatterns("/*");
+    return registration;
+  }
 
-    @Bean
-    FilterRegistrationBean<TenantContextFilter> tenantContextFilter() {
-        FilterRegistrationBean<TenantContextFilter> registration =
-                new FilterRegistrationBean<>(new TenantContextFilter());
-        registration.setOrder(Ordered.HIGHEST_PRECEDENCE + 1);
-        registration.addUrlPatterns("/*");
-        return registration;
-    }
+  @Bean
+  FilterRegistrationBean<TenantContextFilter> tenantContextFilter() {
+    FilterRegistrationBean<TenantContextFilter> registration =
+        new FilterRegistrationBean<>(new TenantContextFilter());
+    registration.setOrder(Ordered.HIGHEST_PRECEDENCE + 1);
+    registration.addUrlPatterns("/*");
+    return registration;
+  }
 }

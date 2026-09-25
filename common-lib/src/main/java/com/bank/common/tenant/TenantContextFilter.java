@@ -15,23 +15,24 @@ import org.slf4j.MDC;
  */
 public class TenantContextFilter extends HttpFilter {
 
-    public static final String HEADER = "X-Organization-Id";
-    public static final String MDC_KEY = "organizationId";
+  public static final String HEADER = "X-Organization-Id";
+  public static final String MDC_KEY = "organizationId";
 
-    @Override
-    protected void doFilter(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
-            throws IOException, ServletException {
-        String org = request.getHeader(HEADER);
-        if (org == null || org.isBlank()) {
-            org = TenantContext.DEFAULT;
-        }
-        TenantContext.set(org);
-        MDC.put(MDC_KEY, org);
-        try {
-            chain.doFilter(request, response);
-        } finally {
-            MDC.remove(MDC_KEY);
-            TenantContext.clear();
-        }
+  @Override
+  protected void doFilter(
+      HttpServletRequest request, HttpServletResponse response, FilterChain chain)
+      throws IOException, ServletException {
+    String org = request.getHeader(HEADER);
+    if (org == null || org.isBlank()) {
+      org = TenantContext.DEFAULT;
     }
+    TenantContext.set(org);
+    MDC.put(MDC_KEY, org);
+    try {
+      chain.doFilter(request, response);
+    } finally {
+      MDC.remove(MDC_KEY);
+      TenantContext.clear();
+    }
+  }
 }

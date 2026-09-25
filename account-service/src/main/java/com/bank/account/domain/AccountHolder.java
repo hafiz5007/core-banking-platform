@@ -14,48 +14,48 @@ import java.util.UUID;
 @Table(name = "account_holder")
 public class AccountHolder {
 
-    @Id
-    @Column(nullable = false, updatable = false)
-    private UUID id;
+  @Id
+  @Column(nullable = false, updatable = false)
+  private UUID id;
 
-    @Column(name = "account_id", nullable = false, updatable = false)
-    private UUID accountId;
+  @Column(name = "account_id", nullable = false, updatable = false)
+  private UUID accountId;
 
-    @Column(name = "customer_id", nullable = false, updatable = false)
-    private UUID customerId;
+  @Column(name = "customer_id", nullable = false, updatable = false)
+  private UUID customerId;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, updatable = false, length = 10)
-    private HolderRole role;
+  @Enumerated(EnumType.STRING)
+  @Column(nullable = false, updatable = false, length = 10)
+  private HolderRole role;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private Instant createdAt;
+  @Column(name = "created_at", nullable = false, updatable = false)
+  private Instant createdAt;
 
-    protected AccountHolder() {
-        // Required by JPA.
-    }
+  protected AccountHolder() {
+    // Required by JPA.
+  }
 
-    public AccountHolder(UUID accountId, UUID customerId, HolderRole role) {
-        this.id = UUID.randomUUID();
-        this.accountId = accountId;
-        this.customerId = customerId;
-        this.role = role;
-        this.createdAt = Instant.now();
-    }
+  public AccountHolder(UUID accountId, UUID customerId, HolderRole role) {
+    this.id = UUID.randomUUID();
+    this.accountId = accountId;
+    this.customerId = customerId;
+    this.role = role;
+    this.createdAt = Instant.now();
+  }
 
-    public UUID getId() {
-        return id;
-    }
+  public UUID getId() {
+    return id;
+  }
 
-    public UUID getAccountId() {
-        return accountId;
-    }
+  public UUID getAccountId() {
+    return accountId;
+  }
 
-    public UUID getCustomerId() {
-        return customerId;
-    }
+  public UUID getCustomerId() {
+    return customerId;
+  }
 
-    public HolderRole getRole() {
-        return role;
-    }
+  public HolderRole getRole() {
+    return role;
+  }
 }

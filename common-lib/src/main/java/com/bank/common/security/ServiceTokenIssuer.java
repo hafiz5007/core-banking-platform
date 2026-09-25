@@ -22,45 +22,46 @@ import java.util.UUID;
  */
 public class ServiceTokenIssuer {
 
-    public static final String CLAIM_SERVICE = "svc";
-    public static final String CLAIM_SCOPE = "scope";
+  public static final String CLAIM_SERVICE = "svc";
+  public static final String CLAIM_SCOPE = "scope";
 
-    private final ServiceAuthProperties properties;
-    private final MACSigner signer;
+  private final ServiceAuthProperties properties;
+  private final MACSigner signer;
 
-    public ServiceTokenIssuer(ServiceAuthProperties properties) {
-        this.properties = properties;
-        try {
-            this.signer = new MACSigner(properties.secret().getBytes(StandardCharsets.UTF_8));
-        } catch (JOSEException e) {
-            throw new IllegalStateException("Unable to build the service-token signer", e);
-        }
+  public ServiceTokenIssuer(ServiceAuthProperties properties) {
+    this.properties = properties;
+    try {
+      this.signer = new MACSigner(properties.secret().getBytes(StandardCharsets.UTF_8));
+    } catch (JOSEException e) {
+      throw new IllegalStateException("Unable to build the service-token signer", e);
     }
+  }
 
-    /**
-     * Mint a token for one call.
-     *
-     * @param audience the service being called
-     * @param scopes   the operations being requested (e.g. {@code ledger:post})
-     */
-    public String mint(String audience, String... scopes) {
-        Instant now = Instant.now();
-        JWTClaimsSet claims = new JWTClaimsSet.Builder()
-                .subject(properties.serviceName())
-                .issuer(properties.issuer())
-                .audience(audience)
-                .issueTime(Date.from(now))
-                .expirationTime(Date.from(now.plus(properties.tokenTtl())))
-                .jwtID(UUID.randomUUID().toString())
-                .claim(CLAIM_SERVICE, properties.serviceName())
-                .claim(CLAIM_SCOPE, String.join(" ", List.of(scopes)))
-                .build();
-        SignedJWT jwt = new SignedJWT(new JWSHeader(JWSAlgorithm.HS256), claims);
-        try {
-            jwt.sign(signer);
-        } catch (JOSEException e) {
-            throw new IllegalStateException("Unable to sign the service token", e);
-        }
-        return jwt.serialize();
+  /**
+   * Mint a token for one call.
+   *
+   * @param audience the service being called
+   * @param scopes the operations being requested (e.g. {@code ledger:post})
+   */
+  public String mint(String audience, String... scopes) {
+    Instant now = Instant.now();
+    JWTClaimsSet claims =
+        new JWTClaimsSet.Builder()
+            .subject(properties.serviceName())
+            .issuer(properties.issuer())
+            .audience(audience)
+            .issueTime(Date.from(now))
+            .expirationTime(Date.from(now.plus(properties.tokenTtl())))
+            .jwtID(UUID.randomUUID().toString())
+            .claim(CLAIM_SERVICE, properties.serviceName())
+            .claim(CLAIM_SCOPE, String.join(" ", List.of(scopes)))
+            .build();
+    SignedJWT jwt = new SignedJWT(new JWSHeader(JWSAlgorithm.HS256), claims);
+    try {
+      jwt.sign(signer);
+    } catch (JOSEException e) {
+      throw new IllegalStateException("Unable to sign the service token", e);
     }
+    return jwt.serialize();
+  }
 }
